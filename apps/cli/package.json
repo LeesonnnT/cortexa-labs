@@ -1,6 +1,6 @@
 {
   "name": "@cortexa-labs/cli",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Context-first CLI for AI workspace engineering.",
   "type": "module",
   "license": "MIT",

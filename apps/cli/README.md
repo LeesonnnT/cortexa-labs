@@ -11,6 +11,8 @@ npm install -g @cortexa-labs/cli
 ## Use
 
 ```bash
+ctx init
+ctx discover
 ctx help
 ctx doctor
 ctx pack billing-review
