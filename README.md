@@ -1,6 +1,6 @@
-# Context Engineering CLI
+# Cortexa Labs
 
-Monorepo skeleton for a context-first AI workspace manager.
+Monorepo for a context-first AI workspace manager.
 
 ## Layout
 
@@ -13,6 +13,4 @@ Monorepo skeleton for a context-first AI workspace manager.
 
 ## Run
 
-```bash
-node apps/cli/src/index.js help
-```
+The publishable npm package lives in `apps/cli`.

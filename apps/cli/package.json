@@ -1,9 +1,27 @@
 {
-  "name": "@ctx/cli",
+  "name": "context-engineering-cli",
   "version": "0.1.0",
-  "private": true,
+  "description": "Context-first CLI for AI workspace engineering.",
   "type": "module",
+  "license": "MIT",
+  "author": "Leeson",
   "bin": {
-    "ctx": "src/index.js"
+    "ctx": "./src/index.js"
+  },
+  "main": "./src/index.js",
+  "files": [
+    "src",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "doctor": "node src/index.js doctor",
+    "prepublishOnly": "npm run doctor"
   }
 }

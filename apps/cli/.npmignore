@@ -1,0 +1,10 @@
+node_modules
+*.log
+docs
+workspace
+adapters
+skills
+workflows
+packages
+dist
+coverage
