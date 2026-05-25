@@ -1,0 +1,7 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+  - "workspace/*"
+  - "adapters/*"
+  - "skills/*"
+  - "workflows/*"

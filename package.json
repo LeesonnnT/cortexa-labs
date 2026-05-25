@@ -1,0 +1,20 @@
+{
+  "name": "context-engineering-cli",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "workspace/*",
+    "adapters/*",
+    "skills/*",
+    "workflows/*"
+  ],
+  "scripts": {
+    "dev": "node apps/cli/src/index.js",
+    "start": "node apps/cli/src/index.js",
+    "ctx": "node apps/cli/src/index.js",
+    "check": "node apps/cli/src/index.js doctor"
+  }
+}
