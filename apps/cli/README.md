@@ -1,11 +1,11 @@
-# context-engineering-cli
+# @cortexa-labs/cli
 
 CLI for workspace-centric context engineering.
 
 ## Install
 
 ```bash
-npm install -g context-engineering-cli
+npm install -g @cortexa-labs/cli
 ```
 
 ## Use
