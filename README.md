@@ -24,7 +24,21 @@ npm install --save-dev @cortexa-labs/cli
 npx --no-install ctx setup
 ```
 
-`ctx setup` initializes `.cortexa/workspace.json` and creates thin native rules for mainstream AI editors and coding agents. The rules tell each editor to obtain a minimal Context Packet through `ctx discover` and `ctx pack "<task>"`; business logic remains in the CLI.
+`ctx setup` initializes `.cortexa/workspace.json` and creates thin native rules for mainstream AI editors and coding agents. During setup, Cortexa chooses a base template automatically from the project shape, or you can select one explicitly:
+
+```bash
+npx --no-install ctx setup --template frontend
+npx --no-install ctx setup --list-templates
+```
+
+Available templates are `minimal`, `frontend`, `backend`, and `monorepo`. The selected template seeds context strategy, default scopes, suggested scopes, and quality gates in `.cortexa/workspace.json`.
+
+The `frontend` template also preinstalls a practical starter kit:
+
+- Skills: `component-implementation`, `page-feature-delivery`, `design-system`, `responsive-layout`, `form-validation`, `api-integration`, `state-management`, `accessibility-audit`, `frontend-performance`, `frontend-testing`, `build-debugging`, `ui-review`
+- Agents: `frontend-builder`, `design-system-maintainer`, `frontend-data-integrator`, `accessibility-specialist`, `frontend-performance-engineer`, `frontend-test-engineer`, `frontend-reviewer`
+
+These profiles are written to `.cortexa/skills/`, `.cortexa/agents/`, and indexed in `.cortexa/starter-kit.json`. Existing customized profiles are kept when setup runs again. The editor rules tell each editor to obtain a minimal Context Packet through `ctx discover` and `ctx pack "<task>"`, then apply a relevant starter profile when available; business logic remains in the CLI.
 
 `ctx discover` uses built-in adapters for JavaScript/TypeScript, Vue, React/Next.js, and pnpm monorepos, then exposes semantic features, packages, entrypoints, and dependency graph data to every editor integration.
 

@@ -16,6 +16,29 @@ Connect the installed CLI to supported AI editors:
 npx --no-install ctx setup
 ```
 
+Setup can seed `.cortexa/workspace.json` from a base template. Use `auto` to infer from the current project, or choose one explicitly:
+
+```bash
+npx --no-install ctx setup --template frontend
+npx --no-install ctx setup --template backend
+npx --no-install ctx setup --list-templates
+```
+
+Available templates:
+
+- `minimal` - general purpose context defaults for small or mixed projects
+- `frontend` - routes, views, components, and browser-facing workflows
+- `backend` - API services, server modules, jobs, and Node runtime projects
+- `monorepo` - multiple apps/packages and internal dependencies
+
+The `frontend` template preinstalls commonly used profiles:
+
+- Skills: components, pages, design systems, responsive layouts, forms, API integration, state management, accessibility, performance, testing, build debugging, and UI review in `.cortexa/skills/*.json`
+- Agents: frontend builder, design-system maintainer, data integrator, accessibility specialist, performance engineer, test engineer, and reviewer in `.cortexa/agents/*.md`
+- Registry: `.cortexa/starter-kit.json`
+
+Generated starter profiles are created only when missing, so subsequent setup runs keep project-specific edits.
+
 This creates `.cortexa/workspace.json` and integration rules for mainstream AI editors and coding agents, including:
 
 - AGENTS.md-compatible agents: `AGENTS.md`

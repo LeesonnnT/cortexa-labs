@@ -77,6 +77,243 @@ const editorAliases = new Map([
 
 const supportedEditors = [...new Set(integrationRegistry.map((integration) => integration.id))].sort();
 
+const templateRegistry = [
+  {
+    id: "minimal",
+    label: "Minimal",
+    description: "General purpose context defaults for small or mixed projects.",
+    defaults: {
+      contextStrategy: "balanced",
+      defaultScope: [],
+      suggestedScopes: ["src", "lib", "app", "packages"],
+      qualityGates: ["ctx discover", "ctx pack <task>"]
+    }
+  },
+  {
+    id: "frontend",
+    label: "Frontend",
+    description: "Frontend apps with routes, views, components, and browser-facing workflows.",
+    defaults: {
+      contextStrategy: "feature-first",
+      defaultScope: ["src", "app", "pages", "components", "views"],
+      suggestedScopes: ["src/views", "src/pages", "src/components", "app", "pages"],
+      qualityGates: ["ctx discover", "ctx pack <task>", "npm run build"]
+    }
+  },
+  {
+    id: "backend",
+    label: "Backend",
+    description: "API services, server modules, jobs, and Node runtime projects.",
+    defaults: {
+      contextStrategy: "service-first",
+      defaultScope: ["src", "server", "api", "routes"],
+      suggestedScopes: ["src", "server", "src/modules", "src/routes", "api"],
+      qualityGates: ["ctx discover", "ctx pack <task>", "npm test"]
+    }
+  },
+  {
+    id: "monorepo",
+    label: "Monorepo",
+    description: "Workspaces with multiple apps/packages and internal dependencies.",
+    defaults: {
+      contextStrategy: "package-first",
+      defaultScope: ["apps", "packages"],
+      suggestedScopes: ["apps/*", "packages/*", "workspace/*"],
+      qualityGates: ["ctx discover", "ctx pack <task>", "npm run build"]
+    }
+  }
+];
+
+const templateAliases = new Map([
+  ["auto", ["auto"]],
+  ["default", ["auto"]],
+  ["basic", ["minimal"]],
+  ["front-end", ["frontend"]],
+  ["web", ["frontend"]],
+  ["vue", ["frontend"]],
+  ["react", ["frontend"]],
+  ["next", ["frontend"]],
+  ["nextjs", ["frontend"]],
+  ["server", ["backend"]],
+  ["api", ["backend"]],
+  ["node", ["backend"]],
+  ["workspace", ["monorepo"]],
+  ["packages", ["monorepo"]]
+]);
+
+const supportedTemplates = templateRegistry.map((template) => template.id).sort();
+
+const starterKits = {
+  frontend: {
+    skills: [
+      {
+        id: "component-implementation",
+        description: "Build or update reusable UI components with states, accessibility, and styling consistency.",
+        instructions: [
+          "Locate the closest existing component pattern before adding a new component.",
+          "Cover loading, empty, error, disabled, and interactive states when relevant.",
+          "Preserve accessibility semantics and keyboard behavior.",
+          "Validate with the project's available typecheck, test, lint, or build command."
+        ]
+      },
+      {
+        id: "page-feature-delivery",
+        description: "Deliver a frontend page or feature through route, data, state, and UI boundaries.",
+        instructions: [
+          "Identify the route or feature entrypoint and its existing data-flow conventions.",
+          "Keep requests, state ownership, display components, and user feedback aligned with local patterns.",
+          "Check responsive layout and user-visible failure states.",
+          "Summarize affected routes, APIs, and validation performed."
+        ]
+      },
+      {
+        id: "design-system",
+        description: "Extend design-system primitives, tokens, and composable UI patterns consistently.",
+        instructions: [
+          "Reuse existing tokens, variants, slots, and composition conventions.",
+          "Avoid feature-specific behavior inside reusable design primitives.",
+          "Document new variants or usage constraints when the public component surface changes.",
+          "Check visual states, theming, and backward compatibility."
+        ]
+      },
+      {
+        id: "responsive-layout",
+        description: "Build layouts that remain usable across mobile, tablet, desktop, and dense content states.",
+        instructions: [
+          "Follow the project's breakpoint, spacing, grid, and overflow conventions.",
+          "Check long labels, empty content, large tables, and narrow viewports.",
+          "Prefer layout primitives over duplicated per-page CSS.",
+          "Validate interaction reachability and readable information hierarchy."
+        ]
+      },
+      {
+        id: "form-validation",
+        description: "Implement frontend forms with validation, submission state, and reliable user feedback.",
+        instructions: [
+          "Reuse the local form library, schemas, validation rules, and field components.",
+          "Handle initialization, dirty state, client/server validation, submit loading, and retries.",
+          "Preserve accessible labels and error announcements.",
+          "Avoid silently dropping user input on request failures."
+        ]
+      },
+      {
+        id: "api-integration",
+        description: "Connect UI features to APIs with typed contracts, loading behavior, and error handling.",
+        instructions: [
+          "Identify the project's request client, query cache, types, and authentication handling.",
+          "Keep request transformation separate from presentation where local patterns support it.",
+          "Implement loading, empty, error, stale, and mutation feedback states.",
+          "Review cache invalidation, cancellation, races, and permission failures."
+        ]
+      },
+      {
+        id: "state-management",
+        description: "Model local and shared frontend state with predictable ownership and updates.",
+        instructions: [
+          "Keep ephemeral UI state local unless multiple consumers require shared ownership.",
+          "Reuse the installed store, hooks, composables, or context conventions.",
+          "Make derived values explicit and avoid duplicated sources of truth.",
+          "Check navigation, refresh, concurrent updates, and persistence behavior."
+        ]
+      },
+      {
+        id: "accessibility-audit",
+        description: "Improve keyboard access, semantics, focus handling, and assistive-technology behavior.",
+        instructions: [
+          "Use native elements and semantics before custom ARIA behavior.",
+          "Check focus order, dialogs, menus, forms, live feedback, and keyboard-only operation.",
+          "Preserve visible focus and sufficient information beyond color alone.",
+          "Report limitations that require browser or screen-reader validation."
+        ]
+      },
+      {
+        id: "frontend-performance",
+        description: "Optimize frontend rendering, bundles, assets, and data loading without behavior loss.",
+        instructions: [
+          "Find measurable hot paths or bundle/data-loading costs before optimizing.",
+          "Limit avoidable rerenders, excessive watchers, heavy dependencies, and duplicated requests.",
+          "Apply lazy loading, memoization, caching, or virtualization only where justified.",
+          "Verify loading behavior and note the measurement used for confidence."
+        ]
+      },
+      {
+        id: "frontend-testing",
+        description: "Add focused tests for components, user flows, and frontend regressions.",
+        instructions: [
+          "Follow the project's existing test runner, utilities, fixtures, and query style.",
+          "Assert behavior from a user's perspective for important interactions.",
+          "Cover bug regressions, critical state transitions, and validation/error behavior.",
+          "Keep mocks bounded to external boundaries rather than implementation detail."
+        ]
+      },
+      {
+        id: "build-debugging",
+        description: "Diagnose frontend lint, typecheck, bundling, runtime, and dependency integration failures.",
+        instructions: [
+          "Capture the exact failure and identify whether it is config, types, build, runtime, or dependency related.",
+          "Trace the smallest responsible module or configuration path.",
+          "Change only the necessary fix and avoid masking diagnostics.",
+          "Rerun the narrow failure plus the relevant build validation."
+        ]
+      },
+      {
+        id: "ui-review",
+        description: "Review frontend changes for behavior, usability, maintainability, and regression risks.",
+        instructions: [
+          "Prioritize runtime bugs, state edge cases, accessibility failures, and missing tests.",
+          "Inspect component reuse and unexpected styling or layout regressions.",
+          "Ground findings in specific files and user-observable impact.",
+          "State residual validation gaps when no issue is found."
+        ]
+      }
+    ],
+    agents: [
+      {
+        id: "frontend-builder",
+        title: "Frontend Builder",
+        role: "Implement frontend product changes with local component, routing, styling, and data-fetching conventions.",
+        recommendedSkills: ["component-implementation", "page-feature-delivery", "responsive-layout", "form-validation"]
+      },
+      {
+        id: "design-system-maintainer",
+        title: "Design System Maintainer",
+        role: "Create and maintain reusable primitives, tokens, variants, documentation, and consistent visual behavior.",
+        recommendedSkills: ["design-system", "component-implementation", "responsive-layout", "accessibility-audit"]
+      },
+      {
+        id: "frontend-data-integrator",
+        title: "Frontend Data Integrator",
+        role: "Implement request, state, cache, form submission, and data-driven interaction flows.",
+        recommendedSkills: ["api-integration", "state-management", "form-validation", "page-feature-delivery"]
+      },
+      {
+        id: "accessibility-specialist",
+        title: "Accessibility Specialist",
+        role: "Audit and improve frontend semantics, keyboard interaction, focus behavior, and inclusive feedback.",
+        recommendedSkills: ["accessibility-audit", "component-implementation", "ui-review"]
+      },
+      {
+        id: "frontend-performance-engineer",
+        title: "Frontend Performance Engineer",
+        role: "Investigate and improve rendering, loading, assets, bundles, and runtime responsiveness.",
+        recommendedSkills: ["frontend-performance", "api-integration", "build-debugging"]
+      },
+      {
+        id: "frontend-test-engineer",
+        title: "Frontend Test Engineer",
+        role: "Create focused behavioral checks and diagnose frontend build or regression failures.",
+        recommendedSkills: ["frontend-testing", "build-debugging", "ui-review"]
+      },
+      {
+        id: "frontend-reviewer",
+        title: "Frontend Reviewer",
+        role: "Review frontend changes for user-visible regressions, state correctness, accessibility, and test coverage.",
+        recommendedSkills: ["ui-review", "accessibility-audit", "frontend-performance", "frontend-testing"]
+      }
+    ]
+  }
+};
+
 function readJson(path) {
   if (!existsSync(path)) {
     return null;
@@ -88,6 +325,16 @@ function readJson(path) {
 function writeJson(path, value) {
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`);
+}
+
+function writeIfMissing(path, content) {
+  mkdirSync(dirname(path), { recursive: true });
+  if (existsSync(path)) {
+    return "kept (existing)";
+  }
+
+  writeFileSync(path, content);
+  return "created";
 }
 
 function listTopLevelDirs(root) {
@@ -174,10 +421,68 @@ function inferSkills(task) {
   return [];
 }
 
-function initializeWorkspace(root) {
+function inferTemplate(discovery) {
+  if (discovery.workspace !== "single-package" || discovery.packages.length > 0) {
+    return "monorepo";
+  }
+
+  if (discovery.frameworks.some((framework) => ["vue", "nuxt", "react", "nextjs", "vite"].includes(framework))) {
+    return "frontend";
+  }
+
+  if (discovery.entrypoints.some((entrypoint) => entrypoint.kind === "server-entry") || discovery.frameworks.includes("nest")) {
+    return "backend";
+  }
+
+  return "minimal";
+}
+
+function resolveTemplate(value, discovery) {
+  const requested = (value || "auto").toLowerCase().trim();
+  const resolved = templateAliases.get(requested)?.[0] || requested;
+  const id = resolved === "auto" ? inferTemplate(discovery) : resolved;
+  const template = templateRegistry.find((candidate) => candidate.id === id);
+
+  if (!template) {
+    throw new Error(`Unsupported template: ${requested}. Choose from ${supportedTemplates.join(", ")} or auto.`);
+  }
+
+  return template;
+}
+
+function parseTemplateSelection(values) {
+  for (let index = 0; index < values.length; index += 1) {
+    const value = values[index];
+
+    if (value === "--template") {
+      return values[index + 1] || "";
+    }
+
+    if (value.startsWith("--template=")) {
+      return value.slice(value.indexOf("=") + 1);
+    }
+  }
+
+  return "auto";
+}
+
+function existingScope(discovery, template) {
+  const discovered = discovery.entrypoints;
+  const templateScope = template.defaults.defaultScope.filter((scope) => existsSync(join(discovery.root, scope)));
+  const scope = [...discovered, ...templateScope];
+
+  if (scope.length > 0) {
+    return [...new Set(scope)];
+  }
+
+  return template.defaults.defaultScope;
+}
+
+function initializeWorkspace(root, templateValue = "auto") {
   const cortexaDir = join(root, ".cortexa");
   const workspacePath = join(cortexaDir, "workspace.json");
   const discovery = discoverWorkspace(root);
+  const template = resolveTemplate(templateValue, discovery);
 
   mkdirSync(cortexaDir, { recursive: true });
 
@@ -185,12 +490,16 @@ function initializeWorkspace(root) {
     writeJson(workspacePath, {
       name: discovery.name,
       contextVersion: 1,
-      defaultScope: discovery.entrypoints,
+      template: template.id,
+      contextStrategy: template.defaults.contextStrategy,
+      defaultScope: existingScope(discovery, template),
+      suggestedScopes: template.defaults.suggestedScopes,
+      qualityGates: template.defaults.qualityGates,
       ignore: ["node_modules", ".git", "dist", "build", "coverage"]
     });
   }
 
-  return workspacePath;
+  return { path: workspacePath, template };
 }
 
 function parseEditorSelection(values) {
@@ -233,7 +542,8 @@ Use Cortexa before broad repository exploration for engineering tasks:
 
 1. Run \`ctx discover\` when repository structure is unknown.
 2. Run \`ctx pack "<task>"\` to obtain the minimal structured context packet.
-3. Work from that packet and expand scope only when the task requires it.
+3. If \`.cortexa/starter-kit.json\` exists, use its matching skill or agent profile for the task.
+4. Work from that packet and expand scope only when the task requires it.
 
 When the CLI is installed as a local dependency, invoke it as \`npx --no-install ctx <command>\`.
 ${managedEnd}`;
@@ -306,7 +616,17 @@ function writeGeneratedRule(path, content) {
   return existed ? "updated" : "created";
 }
 
-function removeManagedSection(path) {
+function isEmptyRuleShell(content) {
+  const value = content.trim();
+
+  if (!value) {
+    return true;
+  }
+
+  return /^---\r?\n[\s\S]*?\r?\n---$/.test(value);
+}
+
+function removeManagedSection(path, options = {}) {
   if (!existsSync(path)) {
     return "missing";
   }
@@ -322,7 +642,7 @@ function removeManagedSection(path) {
   const afterEnd = end + managedEnd.length;
   const next = `${current.slice(0, start).trimEnd()}\n${current.slice(afterEnd).trimStart()}`.trim();
 
-  if (!next) {
+  if (!next || (options.generatedFile && isEmptyRuleShell(next))) {
     rmSync(path);
     return "removed";
   }
@@ -363,6 +683,68 @@ function setupEditors(root, editors) {
   return results;
 }
 
+function skillManifest(skill) {
+  return `${JSON.stringify({
+    name: skill.id,
+    description: skill.description,
+    instructions: skill.instructions
+  }, null, 2)}\n`;
+}
+
+function agentProfile(agent) {
+  return `# ${agent.title}
+
+${agent.role}
+
+## Recommended Skills
+
+${agent.recommendedSkills.map((skill) => `- \`${skill}\``).join("\n")}
+
+## Workflow
+
+1. Run \`ctx pack "<task>"\` before broad exploration.
+2. Read the matching skill manifest from \`.cortexa/skills/\`.
+3. Follow repository conventions and report validation performed.
+`;
+}
+
+function setupStarterKit(root, template) {
+  const kit = starterKits[template.id];
+  if (!kit) {
+    return [];
+  }
+
+  const results = [];
+  for (const skill of kit.skills) {
+    const path = join(root, ".cortexa", "skills", `${skill.id}.json`);
+    results.push({
+      type: "skill",
+      id: skill.id,
+      path: relative(root, path),
+      status: writeIfMissing(path, skillManifest(skill))
+    });
+  }
+
+  for (const agent of kit.agents) {
+    const path = join(root, ".cortexa", "agents", `${agent.id}.md`);
+    results.push({
+      type: "agent",
+      id: agent.id,
+      path: relative(root, path),
+      status: writeIfMissing(path, agentProfile(agent))
+    });
+  }
+
+  writeJson(join(root, ".cortexa", "starter-kit.json"), {
+    version: 1,
+    template: template.id,
+    skills: kit.skills.map((skill) => skill.id),
+    agents: kit.agents.map((agent) => agent.id)
+  });
+
+  return results;
+}
+
 function teardownEditors(root, options = {}) {
   const integrations = new Map(integrationRegistry.map((integration) => [integration.id, integration]));
   const configured = readJson(join(root, ".cortexa", "integrations.json"));
@@ -385,7 +767,7 @@ function teardownEditors(root, options = {}) {
     results.push({
       editor,
       path: relative(root, path),
-      status: removeManagedSection(path)
+      status: removeManagedSection(path, { generatedFile: integration.mode === "file" })
     });
   }
 
@@ -420,6 +802,13 @@ function listEditorIntegrations() {
   }
 }
 
+function listTemplates() {
+  console.log("auto         Detect the best template from the current project.");
+  for (const template of templateRegistry) {
+    console.log(`${template.id.padEnd(12)} ${template.description}`);
+  }
+}
+
 const commands = {
   help() {
     console.log(`Context Engineering CLI
@@ -429,8 +818,9 @@ Usage:
   ctx version
   ctx doctor
   ctx init
-  ctx setup [--editors all|codex,cursor,kiro,trae,...]
+  ctx setup [--template auto|minimal|frontend|backend|monorepo] [--editors all|codex,cursor,kiro,trae,...]
   ctx setup --list-editors
+  ctx setup --list-templates
   ctx teardown [--purge]
   ctx discover
   ctx pack <task>
@@ -461,8 +851,13 @@ Commands:
     console.log(JSON.stringify(checks, null, 2));
   },
   init() {
-    const workspacePath = initializeWorkspace(cwd);
-    console.log(`initialized ${relative(cwd, workspacePath)}`);
+    try {
+      const workspace = initializeWorkspace(cwd, parseTemplateSelection(args));
+      console.log(`initialized ${relative(cwd, workspace.path)} (${workspace.template.id} template)`);
+    } catch (error) {
+      console.error(error.message);
+      process.exitCode = 1;
+    }
   },
   setup() {
     try {
@@ -471,13 +866,22 @@ Commands:
         return;
       }
 
-      const editors = parseEditorSelection(args);
-      const workspacePath = initializeWorkspace(cwd);
-      const results = setupEditors(cwd, editors);
+      if (args.includes("--list-templates")) {
+        listTemplates();
+        return;
+      }
 
-      console.log(`initialized ${relative(cwd, workspacePath)}`);
+      const editors = parseEditorSelection(args);
+      const workspace = initializeWorkspace(cwd, parseTemplateSelection(args));
+      const results = setupEditors(cwd, editors);
+      const starters = setupStarterKit(cwd, workspace.template);
+
+      console.log(`initialized ${relative(cwd, workspace.path)} (${workspace.template.id} template)`);
       for (const result of results) {
         console.log(`${result.editor}: ${result.status} ${result.path}`);
+      }
+      for (const starter of starters) {
+        console.log(`${starter.type} ${starter.id}: ${starter.status} ${starter.path}`);
       }
     } catch (error) {
       console.error(error.message);
