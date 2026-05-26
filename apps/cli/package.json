@@ -1,6 +1,6 @@
 {
   "name": "@cortexa-labs/cli",
-  "version": "0.1.1",
+  "version": "0.5.0",
   "description": "Context-first CLI for AI workspace engineering.",
   "type": "module",
   "license": "MIT",
@@ -22,6 +22,7 @@
   "scripts": {
     "start": "node src/index.js",
     "doctor": "node src/index.js doctor",
+    "test": "node --test",
     "prepublishOnly": "npm run doctor"
   }
 }

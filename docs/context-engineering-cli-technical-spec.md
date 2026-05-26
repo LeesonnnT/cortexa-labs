@@ -189,6 +189,18 @@ Adapter 负责：
 }
 ```
 
+MVP 阶段内置 Adapter：
+
+- `javascript-typescript`：扫描 `.js/.jsx/.mjs/.cjs/.ts/.tsx/.vue` 源文件，识别语言、常见入口、脚本入口和源码根。
+- `vue`：通过 `vue/nuxt/vite` 依赖、配置文件和 `.vue` 文件识别 Vue/Nuxt 项目，抽取 `src/views`、`src/pages`、`src/router` 等语义入口。
+- `react-next`：通过 `react/next` 依赖、Next 配置和 `.tsx/.jsx` 文件识别 React/Next 项目，抽取 `app` router、`pages` router 和 React 根入口。
+- `pnpm-monorepo`：解析 `pnpm-workspace.yaml` 与 `package.json#workspaces`，展开 workspace package，并构建 root/package/internal dependency graph。
+
+当前 CLI 中，Adapter 输出已接入：
+
+- `ctx discover`：返回 `adapters`、`frameworks`、`workspace`、`features`、`packages`、`semanticEntrypoints`、`dependencyGraph`、`sourceSummary`。
+- `ctx pack <task>`：优先按 task 命中 feature/package 生成最小 `scope`，否则回退到语义入口。
+
 ### 7.4 Semantic Layer
 
 语义层不输出文件树，而是输出工程语义图谱。
@@ -312,6 +324,59 @@ spec → generate → review → fix → release
 - Local Model
 
 模型不是核心壁垒，核心壁垒是 Context Engineering。
+
+### 7.11 Editor Integration Layer
+
+Codex、Cursor、Kiro、Trae、Windsurf、Claude Code、Gemini CLI、GitHub Copilot、Cline、Roo Code、Aider、Amazon Q、JetBrains Junie、Continue 等编辑器或编码代理属于上下文消费端，而不是新的 Runtime 或 Skill 实现。
+
+安装后的最小接入流程为：
+
+```txt
+npm install @cortexa-labs/cli
+→ ctx setup
+→ 生成编辑器原生规则文件
+→ 编辑器调用 ctx discover / ctx pack
+→ 消费同一份 Context Packet
+```
+
+`ctx setup` 负责：
+
+- 初始化 `.cortexa/workspace.json`
+- 根据编辑器目标生成轻量调用规则
+- 保存启用的 integrations 清单
+- 在重复执行时更新受管规则，不覆盖用户自定义规则
+
+`ctx teardown` 负责：
+
+- 读取 `.cortexa/integrations.json`，只清理已启用过的编辑器规则
+- 删除由 Cortexa 完全生成的规则文件
+- 对 `AGENTS.md`、`CLAUDE.md`、`GEMINI.md`、`CONVENTIONS.md` 等共享文件，只移除 `<!-- cortexa:start -->` 到 `<!-- cortexa:end -->` 的受管区块
+- 默认保留 `.cortexa/workspace.json`，避免破坏项目级 discovery 配置
+- 仅在显式传入 `--purge` 时删除 `.cortexa` 元数据目录
+
+默认接入目标：
+
+| Editor | Generated Entry |
+| --- | --- |
+| AGENTS.md compatible agents | `AGENTS.md` |
+| Codex | `AGENTS.md` 受管区块 |
+| OpenCode | `AGENTS.md` 受管区块 |
+| Cursor | `.cursor/rules/cortexa-context.mdc` |
+| Kiro | `.kiro/steering/cortexa-context.md` |
+| Trae | `.trae/rules/cortexa-context.md` |
+| Windsurf | `.windsurf/rules/cortexa-context.md` |
+| Zed | `.rules` |
+| Claude Code | `CLAUDE.md` |
+| Gemini CLI | `GEMINI.md` |
+| GitHub Copilot / VS Code | `.github/copilot-instructions.md` |
+| Cline | `.clinerules/cortexa-context.md` |
+| Roo Code | `.roo/rules/cortexa-context.md` |
+| Aider | `CONVENTIONS.md` |
+| Amazon Q Developer | `.amazonq/rules/cortexa-context.md` |
+| JetBrains Junie | `.junie/guidelines.md` |
+| Continue | `.continue/rules/cortexa-context.md` |
+
+这一层必须保持薄：规则只描述何时获取 Context Packet，不复制扫描、解析、Skill 或 Workflow 逻辑。这样 npm 包可以提供一次安装后的直接使用体验，同时编辑器扩展不会破坏 Workspace-Centric Architecture。
 
 ## 8. 仓库结构建议
 
