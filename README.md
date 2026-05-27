@@ -24,14 +24,20 @@ npm install --save-dev @cortexa-labs/cli
 npx --no-install ctx setup --interactive
 ```
 
-The install step prints a short next-step guide. Use the interactive setup when you want Cortexa to ask for the project template and editor integrations before writing files. If you already know the target setup, pass the options directly:
+During install, Cortexa starts guided setup when npm provides an interactive terminal. When npm runs lifecycle scripts without an interactive terminal, Cortexa still completes a default setup automatically with the detected template and the Codex integration. If you already know the target setup, pass the options directly:
 
 ```bash
 npm install --save-dev @cortexa-labs/cli
-npx --no-install ctx setup
+npx --no-install ctx setup --template frontend --editors codex
 ```
 
-`ctx setup` initializes `.cortexa/workspace.json` and creates thin native rules for mainstream AI editors and coding agents. During setup, Cortexa chooses a base template automatically from the project shape, or you can select one explicitly:
+To force npm lifecycle scripts into the foreground for interactive prompts, use:
+
+```bash
+npm install --save-dev @cortexa-labs/cli --foreground-scripts
+```
+
+`ctx setup` initializes `.cortexa/workspace.json` and creates a thin native rule for Codex by default. During setup, Cortexa chooses a base template automatically from the project shape, or you can select one explicitly:
 
 ```bash
 npx --no-install ctx setup --template frontend
@@ -53,6 +59,7 @@ To configure only selected editors:
 
 ```bash
 npx --no-install ctx setup --editors codex,cursor
+npx --no-install ctx setup --editors all
 npx --no-install ctx setup --list-editors
 ```
 

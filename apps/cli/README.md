@@ -8,15 +8,21 @@ CLI for workspace-centric context engineering.
 npm install --save-dev @cortexa-labs/cli
 ```
 
-After install, the package prints the recommended setup commands. For a guided first run:
+During install, Cortexa starts guided setup when npm provides an interactive terminal. When npm runs lifecycle scripts without an interactive terminal, Cortexa still completes a default setup automatically with the detected template and the Codex integration. For a guided first run:
 
 ```bash
 npx --no-install ctx setup --interactive
 ```
 
+To force npm lifecycle scripts into the foreground for interactive prompts, use:
+
+```bash
+npm install --save-dev @cortexa-labs/cli --foreground-scripts
+```
+
 ## Setup
 
-Connect the installed CLI to supported AI editors:
+Connect the installed CLI to Codex with the default lightweight setup:
 
 ```bash
 npx --no-install ctx setup
@@ -51,7 +57,7 @@ The `frontend` template preinstalls commonly used profiles:
 
 Generated starter profiles are created only when missing, so subsequent setup runs keep project-specific edits.
 
-This creates `.cortexa/workspace.json` and integration rules for mainstream AI editors and coding agents, including:
+This creates `.cortexa/workspace.json` and `AGENTS.md` by default. Pass `--editors` to generate rules for more AI editors and coding agents, including:
 
 - AGENTS.md-compatible agents: `AGENTS.md`
 - Codex: `AGENTS.md`
@@ -71,7 +77,7 @@ This creates `.cortexa/workspace.json` and integration rules for mainstream AI e
 - JetBrains Junie: `.junie/guidelines.md`
 - Continue: `.continue/rules/cortexa-context.md`
 
-Use `--editors codex,cursor` to enable only selected targets, or `--list-editors` to print the supported registry. Existing custom editor rule files are not overwritten, and generated rules can be refreshed by running `setup` again.
+Use `--editors codex,cursor` to enable selected targets, `--editors all` to generate every supported integration, or `--list-editors` to print the supported registry. Existing custom editor rule files are not overwritten, and generated rules can be refreshed by running `setup` again.
 
 For global CLI usage:
 

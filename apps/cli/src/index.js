@@ -55,10 +55,11 @@ const defaultIntegrations = [
   "junie",
   "continue"
 ];
+const defaultEditorSelection = ["codex"];
 
 const editorAliases = new Map([
   ["all", defaultIntegrations],
-  ["default", defaultIntegrations],
+  ["default", defaultEditorSelection],
   ["mainstream", defaultIntegrations],
   ["github-copilot", ["copilot"]],
   ["githubcopilot", ["copilot"]],
@@ -518,7 +519,7 @@ function parseEditorSelection(values) {
     }
   }
 
-  const tokens = (requested.length === 0 ? ["all"] : requested)
+  const tokens = (requested.length === 0 ? ["default"] : requested)
     .flatMap((value) => value.toLowerCase().split(","))
     .map((value) => value.trim())
     .filter(Boolean);
@@ -567,11 +568,11 @@ async function promptChoice(rl, question, choices, defaultId) {
   }
 }
 
-async function promptEditors(rl, defaultValue = "codex,cursor") {
+async function promptEditors(rl, defaultValue = "codex") {
   console.log("");
   console.log("Editor integrations:");
   console.log("  all - generate rules for every supported editor");
-  console.log("  common picks - codex,cursor | codex | cursor | copilot | claude");
+  console.log("  common picks - codex | cursor | codex,cursor | copilot | claude");
   console.log(`  supported - ${supportedEditors.join(", ")}`);
 
   while (true) {
@@ -896,12 +897,12 @@ const commands = {
   help() {
     console.log(`Context Engineering CLI
 
-Usage:
+  Usage:
   ctx help
   ctx version
   ctx doctor
   ctx init
-  ctx setup [--template auto|minimal|frontend|backend|monorepo] [--editors all|codex,cursor,kiro,trae,...]
+  ctx setup [--template auto|minimal|frontend|backend|monorepo] [--editors codex|cursor|all|codex,cursor,...]
   ctx setup --interactive
   ctx setup --list-editors
   ctx setup --list-templates
