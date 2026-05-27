@@ -8,12 +8,24 @@ CLI for workspace-centric context engineering.
 npm install --save-dev @cortexa-labs/cli
 ```
 
+After install, the package prints the recommended setup commands. For a guided first run:
+
+```bash
+npx --no-install ctx setup --interactive
+```
+
 ## Setup
 
 Connect the installed CLI to supported AI editors:
 
 ```bash
 npx --no-install ctx setup
+```
+
+Use `--interactive` to choose the project template and editor integrations from prompts:
+
+```bash
+npx --no-install ctx setup --interactive
 ```
 
 Setup can seed `.cortexa/workspace.json` from a base template. Use `auto` to infer from the current project, or choose one explicitly:

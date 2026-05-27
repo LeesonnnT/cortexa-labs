@@ -2,6 +2,8 @@
 
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, relative } from "node:path";
+import { createInterface } from "node:readline/promises";
+import { stdin as input, stdout as output } from "node:process";
 import { analyzeProject, selectContextScope } from "./adapters/project.js";
 
 const command = (process.argv[2] || "help").toLowerCase();
@@ -534,6 +536,87 @@ function parseEditorSelection(values) {
   return [...new Set(selected)];
 }
 
+function hasFlag(values, ...flags) {
+  return values.some((value) => flags.includes(value));
+}
+
+function formatChoice(choice, index, defaultId) {
+  const marker = choice.id === defaultId ? " (default)" : "";
+  return `  ${index + 1}. ${choice.id}${marker} - ${choice.description}`;
+}
+
+async function promptChoice(rl, question, choices, defaultId) {
+  while (true) {
+    console.log("");
+    for (let index = 0; index < choices.length; index += 1) {
+      console.log(formatChoice(choices[index], index, defaultId));
+    }
+
+    const answer = (await rl.question(`${question} [${defaultId}]: `)).trim().toLowerCase();
+    const value = answer || defaultId;
+    const byNumber = Number.parseInt(value, 10);
+    const choice = Number.isInteger(byNumber)
+      ? choices[byNumber - 1]
+      : choices.find((candidate) => candidate.id === value);
+
+    if (choice) {
+      return choice.id;
+    }
+
+    console.log(`Choose one of: ${choices.map((choice) => choice.id).join(", ")}`);
+  }
+}
+
+async function promptEditors(rl, defaultValue = "codex,cursor") {
+  console.log("");
+  console.log("Editor integrations:");
+  console.log("  all - generate rules for every supported editor");
+  console.log("  common picks - codex,cursor | codex | cursor | copilot | claude");
+  console.log(`  supported - ${supportedEditors.join(", ")}`);
+
+  while (true) {
+    const answer = (await rl.question(`Editors to configure [${defaultValue}]: `)).trim();
+    const value = answer || defaultValue;
+
+    try {
+      return parseEditorSelection(["--editors", value]);
+    } catch (error) {
+      console.log(error.message);
+    }
+  }
+}
+
+async function promptSetupOptions(root) {
+  if (!input.isTTY || !output.isTTY) {
+    throw new Error("Interactive setup requires a TTY. Run `ctx setup --template frontend --editors codex,cursor` instead.");
+  }
+
+  const discovery = discoverWorkspace(root);
+  const inferredTemplate = inferTemplate(discovery);
+  const rl = createInterface({ input, output });
+
+  try {
+    console.log("Cortexa setup");
+    console.log(`Project: ${discovery.name}`);
+    console.log(`Detected template: ${inferredTemplate}`);
+
+    const template = await promptChoice(
+      rl,
+      "Template",
+      [
+        { id: "auto", description: `use detected template (${inferredTemplate})` },
+        ...templateRegistry.map((template) => ({ id: template.id, description: template.description }))
+      ],
+      "auto"
+    );
+    const editors = await promptEditors(rl);
+
+    return { template, editors };
+  } finally {
+    rl.close();
+  }
+}
+
 function managedInstructions(label) {
   return `${managedStart}
 # Cortexa Context (${label})
@@ -819,6 +902,7 @@ Usage:
   ctx doctor
   ctx init
   ctx setup [--template auto|minimal|frontend|backend|monorepo] [--editors all|codex,cursor,kiro,trae,...]
+  ctx setup --interactive
   ctx setup --list-editors
   ctx setup --list-templates
   ctx teardown [--purge]
@@ -830,7 +914,7 @@ Commands:
   version   Show CLI version.
   doctor    Validate workspace skeleton.
   init      Initialize workspace metadata.
-  setup     Initialize metadata and add editor-native context rules.
+  setup     Initialize metadata and add editor-native context rules. Use --interactive for guided setup.
   teardown  Remove Cortexa-managed editor rules without touching project code.
   discover  Inspect workspace shape.
   pack      Build a minimal context packet.
@@ -859,7 +943,7 @@ Commands:
       process.exitCode = 1;
     }
   },
-  setup() {
+  async setup() {
     try {
       if (args.includes("--list-editors")) {
         listEditorIntegrations();
@@ -871,9 +955,15 @@ Commands:
         return;
       }
 
-      const editors = parseEditorSelection(args);
-      const workspace = initializeWorkspace(cwd, parseTemplateSelection(args));
-      const results = setupEditors(cwd, editors);
+      const interactive = hasFlag(args, "--interactive", "-i");
+      const options = interactive
+        ? await promptSetupOptions(cwd)
+        : {
+            template: parseTemplateSelection(args),
+            editors: parseEditorSelection(args)
+          };
+      const workspace = initializeWorkspace(cwd, options.template);
+      const results = setupEditors(cwd, options.editors);
       const starters = setupStarterKit(cwd, workspace.template);
 
       console.log(`initialized ${relative(cwd, workspace.path)} (${workspace.template.id} template)`);
@@ -911,5 +1001,5 @@ if (!commands[command]) {
   console.error(`Unknown command: ${command}`);
   process.exitCode = 1;
 } else {
-  commands[command]();
+  await commands[command]();
 }

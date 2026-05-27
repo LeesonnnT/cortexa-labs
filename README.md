@@ -21,6 +21,13 @@ Install the CLI in a project and connect its AI editor integrations in one step:
 
 ```bash
 npm install --save-dev @cortexa-labs/cli
+npx --no-install ctx setup --interactive
+```
+
+The install step prints a short next-step guide. Use the interactive setup when you want Cortexa to ask for the project template and editor integrations before writing files. If you already know the target setup, pass the options directly:
+
+```bash
+npm install --save-dev @cortexa-labs/cli
 npx --no-install ctx setup
 ```
 
