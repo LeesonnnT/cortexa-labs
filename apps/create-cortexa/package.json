@@ -1,0 +1,24 @@
+{
+  "name": "create-cortexa",
+  "version": "0.1.0",
+  "description": "Interactive initializer for Cortexa workspace context.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Leeson",
+  "bin": {
+    "create-cortexa": "./src/index.js"
+  },
+  "files": [
+    "src",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "test": "node --test"
+  }
+}

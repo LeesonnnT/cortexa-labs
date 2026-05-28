@@ -4,20 +4,22 @@ CLI for workspace-centric context engineering.
 
 ## Install
 
+For a guided installation into an existing project, use the initializer:
+
+```bash
+npm create cortexa@latest
+```
+
+To install only this CLI dependency:
+
 ```bash
 npm install --save-dev @cortexa-labs/cli
 ```
 
-During install, Cortexa starts guided setup when npm provides an interactive terminal. When npm runs lifecycle scripts without an interactive terminal, Cortexa still completes a default setup automatically with the detected template and the Codex integration. For a guided first run:
+Then initialize explicitly:
 
 ```bash
 npx --no-install ctx setup --interactive
-```
-
-To force npm lifecycle scripts into the foreground for interactive prompts, use:
-
-```bash
-npm install --save-dev @cortexa-labs/cli --foreground-scripts
 ```
 
 ## Setup

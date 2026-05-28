@@ -4,7 +4,7 @@ Monorepo for a context-first AI workspace manager.
 
 ## Layout
 
-- `apps/` - CLI and future dashboard entrypoints
+- `apps/` - CLI, initializer, and future dashboard entrypoints
 - `workspace/` - runtime, graph, resolver, ownership
 - `adapters/` - framework/project adapters
 - `skills/` - normalized engineering skills
@@ -13,28 +13,28 @@ Monorepo for a context-first AI workspace manager.
 
 ## Run
 
-The publishable npm package lives in `apps/cli`.
+The publishable npm packages live in `apps/cli` (`@cortexa-labs/cli`) and `apps/create-cortexa` (`create-cortexa`).
 
-## Install And Connect
+## Add To A Project
 
-Install the CLI in a project and connect its AI editor integrations in one step:
+Use the initializer to install the CLI and configure your workspace in one guided flow:
 
 ```bash
-npm install --save-dev @cortexa-labs/cli
-npx --no-install ctx setup --interactive
+npm create cortexa@latest
 ```
 
-During install, Cortexa starts guided setup when npm provides an interactive terminal. When npm runs lifecycle scripts without an interactive terminal, Cortexa still completes a default setup automatically with the detected template and the Codex integration. If you already know the target setup, pass the options directly:
+This prompts for the project template and target editors, installs `@cortexa-labs/cli` as a development dependency, and writes only the selected integrations.
+
+For an automatic minimal setup:
 
 ```bash
-npm install --save-dev @cortexa-labs/cli
-npx --no-install ctx setup --template frontend --editors codex
+npm create cortexa@latest -- --yes
 ```
 
-To force npm lifecycle scripts into the foreground for interactive prompts, use:
+If you already know the target setup, pass the options directly:
 
 ```bash
-npm install --save-dev @cortexa-labs/cli --foreground-scripts
+npm create cortexa@latest -- --template frontend --editors codex,cursor
 ```
 
 `ctx setup` initializes `.cortexa/workspace.json` and creates a thin native rule for Codex by default. During setup, Cortexa chooses a base template automatically from the project shape, or you can select one explicitly:
@@ -68,4 +68,25 @@ Remove generated integrations without affecting project code:
 ```bash
 npx --no-install ctx teardown
 npx --no-install ctx teardown --purge
+```
+
+## Install CLI Only
+
+Install only the command-line dependency when initialization will be performed separately:
+
+```bash
+npm install --save-dev @cortexa-labs/cli
+npx --no-install ctx setup --interactive
+```
+
+## Publish
+
+Publish the CLI before the initializer so new initializer runs install the updated CLI behavior:
+
+```bash
+cd apps/cli
+npm publish --access public
+
+cd ../create-cortexa
+npm publish --access public
 ```
