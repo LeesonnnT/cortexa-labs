@@ -53,19 +53,19 @@ Available templates:
 
 The `frontend` template preinstalls commonly used profiles:
 
-- Skills: components, pages, design systems, responsive layouts, forms, API integration, state management, accessibility, performance, testing, build debugging, and UI review in `.cortexa/skills/*.json`
-- Agents: frontend builder, design-system maintainer, data integrator, accessibility specialist, performance engineer, test engineer, and reviewer in `.cortexa/agents/*.md`
+- Skills: components, pages, design systems, responsive layouts, forms, API integration, state management, accessibility, performance, testing, build debugging, and UI review in `.cortexa/skills/<skill>/SKILL.md`
+- Agents: frontend builder, design-system maintainer, data integrator, accessibility specialist, performance engineer, test engineer, and reviewer in `.cortexa/agents/<agent>.md`
 - Registry: `.cortexa/starter-kit.json`
 
 Generated starter profiles are created only when missing, so subsequent setup runs keep project-specific edits.
 
 This creates `.cortexa/workspace.json`, `.cortexa/project-kit.json`, project specs, reusable skills, reusable agents, and `AGENTS.md` by default. The project kit is seeded from adapter output so a newly installed project has editable conventions for:
 
-- Coding conventions: `.cortexa/specs/coding-conventions.md`
-- API/interface conventions: `.cortexa/specs/api-conventions.md`
-- Documentation conventions: `.cortexa/specs/documentation-conventions.md`
-- UI conventions: `.cortexa/specs/ui-conventions.md`
-- Project understanding: `.cortexa/specs/project-overview.md`
+- Coding conventions: `.cortexa/specs/coding-conventions/{requirements,design,tasks}.md`
+- API/interface conventions: `.cortexa/specs/api-conventions/{requirements,design,tasks}.md`
+- Documentation conventions: `.cortexa/specs/documentation-conventions/{requirements,design,tasks}.md`
+- UI conventions: `.cortexa/specs/ui-conventions/{requirements,design,tasks}.md`
+- Project understanding: `.cortexa/specs/project-overview/{requirements,design,tasks}.md`
 
 The generated specs are intentionally project-local. Keep team decisions there so `ctx pack "<task>"` can return the relevant spec paths alongside package, feature, and dependency context.
 
@@ -75,7 +75,7 @@ When the project structure changes, refresh Cortexa's adapter-derived snapshot w
 npx --no-install ctx update
 ```
 
-`update` refreshes `.cortexa/project-kit.json`, updates the managed adapter snapshot block inside each `.cortexa/specs/*.md` file, and creates any missing built-in specs, skills, or agents. It does not replace custom content outside the Cortexa adapter snapshot markers.
+`update` refreshes `.cortexa/project-kit.json`, updates the managed adapter snapshot block inside each `.cortexa/specs/<spec>/design.md` file, and creates any missing built-in specs, skills, or agents. It does not replace custom content outside the Cortexa adapter snapshot markers.
 
 Pass `--editors` to generate rules for more AI editors and coding agents, including:
 

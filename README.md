@@ -29,10 +29,12 @@ Depending on your choices, Cortexa creates:
 
 - `.cortexa/workspace.json`
 - `.cortexa/project-kit.json`
-- project specs under `.cortexa/specs/` for project overview, coding, API/interface, documentation, and UI conventions
-- reusable project skills and agents under `.cortexa/skills/` and `.cortexa/agents/`
+- project specs under `.cortexa/specs/<spec>/requirements.md`, `design.md`, and `tasks.md`
+- reusable project skills under `.cortexa/skills/<skill>/SKILL.md` and Claude-style agents under `.cortexa/agents/<agent>.md`
 - `AGENTS.md` or editor-native rule files
 - optional frontend starter skills and agents under `.cortexa/skills/` and `.cortexa/agents/`
+
+Skills use a `SKILL.md` directory entrypoint, agents use Claude-style Markdown files with YAML frontmatter, and specs use Kiro-style `requirements.md`, `design.md`, and `tasks.md` files.
 
 Run `ctx update` after adding packages, features, entrypoints, or dependencies. It refreshes Cortexa-managed adapter snapshots while preserving project-specific spec text.
 

@@ -286,14 +286,42 @@ Skill 不是 Agent，而是标准化工程能力。
 - spec-generate
 - dependency-audit
 
-Skill 结构：
+Skill 结构优先采用目录式 Agent skill 约定：
+
+```txt
+skills/
+  project-understanding/
+    SKILL.md
+    references/
+    scripts/
+    assets/
+```
+
+其中 `SKILL.md` 是人类与 Agent 可读的唯一主入口。
+
+Agent 采用 Claude-style 单文件约定，Spec 采用 Kiro-style 三阶段目录约定：
+
+```txt
+agents/
+  frontend-builder.md
+specs/
+  coding-conventions/
+    requirements.md
+    design.md
+    tasks.md
+```
+
+Agent Markdown 文件应包含 YAML frontmatter，并使用稳定章节描述适用场景、工作流、输出与推荐技能。Spec 目录应把需求、设计与任务拆开，`design.md` 承载 Cortexa adapter snapshot 与工程规则，方便 Kiro-style spec 工作流和其他 Agent 工具直接读取。
+
+更完整的 runtime skill 包可以继续扩展为：
 
 ```txt
 skill/
-  manifest.json
-  prompt.md
+  SKILL.md
+  references/
+  scripts/
+  assets/
   examples/
-  tools/
   tests/
 ```
 
@@ -427,7 +455,11 @@ AI 永远只暴露最小上下文。
 
 所有 Context Resolve 都基于 Repo Graph。
 
-### 9.6 Convention Over Guessing
+### 9.6 Modular and Componentized
+
+Cortexa 自身开发必须坚持模块化与组件化：按职责拆分 CLI 命令、项目适配器、模板注册、规则生成、Context Packet 组装、Skill 生成、Agent 生成与 IO 工具，避免单文件过大、职责交叉和难以测试的混合实现。独立功能模块外层必须使用短横线命名的文件夹，并通过统一的 `index.js` 出口对外暴露；同一模块内部可以继续拆为同级 JS 文件，但不应把无关模块文件平铺在父级目录。新增能力应优先落到清晰模块边界内；当一个文件开始承载多个变化原因时，应先拆分职责再继续扩展。
+
+### 9.7 Convention Over Guessing
 
 不要让 AI 猜测工程结构，而是通过 Convention 和 Adapter 让结构可理解。
 
