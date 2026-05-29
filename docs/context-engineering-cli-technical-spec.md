@@ -122,6 +122,7 @@ CLI
   → Context Core
   → Semantic Layer
   → Context Packet
+  → Multi Agent Coordination
   → Skill Engine
   → AI Provider Layer
 ```
@@ -327,7 +328,76 @@ skill/
 
 Skill 只能消费 Context Packet，不能直接读取整个 Repo。
 
-### 7.9 Workflow Engine
+### 7.9 Multi Agent Coordination
+
+Multi Agent Coordination 负责让多个 agent 在同一工程任务中安全协作。
+
+它不是通用 Agent 平台，而是 Context Engineering 的协作层，核心职责是：
+
+- Agent Role Selection：根据任务、scope、skills、specs 选择推荐 agent
+- Collaboration Mode：选择 `single`、`pipeline`、`parallel` 或 `review-gate`
+- Context Isolation：每个 agent 只消费自己的 Context Packet、scope、specs 和 skills
+- Handoff Protocol：通过结构化交接摘要传递结论，而不是共享无边界上下文
+- Conflict Avoidance：并行 agent 必须拥有互不重叠的写入范围
+
+项目本地生成：
+
+```txt
+.cortexa/
+  multi-agent/
+    README.md
+    collaboration.md
+    protocol.json
+    handoff.schema.json
+```
+
+`ctx pack <task>` 会返回：
+
+```json
+{
+  "agents": [
+    {
+      "id": "project-context-analyst",
+      "title": "项目上下文分析 Agent",
+      "reason": "先确认最小上下文、包边界、功能边界和依赖关系。"
+    },
+    {
+      "id": "project-implementation-agent",
+      "title": "项目实现 Agent",
+      "reason": "任务需要实际实现或修改代码。"
+    }
+  ],
+  "multiAgent": {
+    "mode": "review-gate",
+    "protocol": ".cortexa/multi-agent/collaboration.md",
+    "handoffSchema": ".cortexa/multi-agent/handoff.schema.json",
+    "recommendedOrder": [
+      "project-context-analyst",
+      "project-implementation-agent",
+      "project-review-agent"
+    ]
+  }
+}
+```
+
+协作模式：
+
+- `single`：单 agent 处理，适用于范围明确、风险较低的任务。
+- `pipeline`：按阶段串行协作，例如 context analyst → implementation agent → review agent。
+- `parallel`：多个 agent 并行处理互不重叠的 scope，适用于 monorepo 或跨模块任务。
+- `review-gate`：实现完成后必须交给 review agent 做行为风险和验证缺口检查。
+
+交接摘要必须包含：
+
+- Task
+- Scope
+- Inputs
+- Decisions
+- Changes
+- Risks
+- Next Agent
+
+### 7.10 Workflow Engine
 
 Workflow 本质是 Context Flow，负责：
 
@@ -342,7 +412,7 @@ Workflow 本质是 Context Flow，负责：
 spec → generate → review → fix → release
 ```
 
-### 7.10 AI Provider Layer
+### 7.11 AI Provider Layer
 
 负责统一接入：
 
@@ -353,7 +423,7 @@ spec → generate → review → fix → release
 
 模型不是核心壁垒，核心壁垒是 Context Engineering。
 
-### 7.11 Editor Integration Layer
+### 7.12 Editor Integration Layer
 
 Codex、Cursor、Kiro、Trae、Windsurf、Claude Code、Gemini CLI、GitHub Copilot、Cline、Roo Code、Aider、Amazon Q、JetBrains Junie、Continue 等编辑器或编码代理属于上下文消费端，而不是新的 Runtime 或 Skill 实现。
 
@@ -372,7 +442,112 @@ npm install @cortexa-labs/cli
 - 初始化 `.cortexa/workspace.json`
 - 根据编辑器目标生成轻量调用规则
 - 保存启用的 integrations 清单
+- 生成 `.cortexa/context-manifest.json`，记录上下文资产层、能力信号与生命周期归属
+- 初始化核心上下文资产：`agents/`、`skills/`、`specs/`、`contexts/`、`adapters/`、`graphs/`、`runtime/`、`ownership/`、`multi-agent/`、`workflows/`
+- 根据 adapter 信号按需启用扩展资产：`contracts/`、`domains/`、`memory/`，`reports/` 由分析类命令生成
 - 在重复执行时更新受管规则，不覆盖用户自定义规则
+
+### 7.12.1 Context Asset Manifest
+
+`.cortexa` 不是单纯的目录模板，而是项目本地的 Context Asset System。
+
+所有上下文资产必须通过 `.cortexa/context-manifest.json` 管理生命周期：
+
+```json
+{
+  "version": 1,
+  "enabledLayers": [
+    "agents",
+    "skills",
+    "specs",
+    "contexts",
+    "adapters",
+    "graphs",
+    "runtime",
+    "ownership",
+    "multi-agent",
+    "workflows"
+  ],
+  "detectedCapabilities": [
+    "frontend",
+    "monorepo",
+    "contracts"
+  ],
+  "generatedAssets": {
+    "specs": {
+      "enabled": true,
+      "owner": "hybrid",
+      "refreshable": false,
+      "reason": "core project conventions with managed adapter snapshots"
+    },
+    "adapters": {
+      "enabled": true,
+      "owner": "machine",
+      "refreshable": true,
+      "reason": "adapter discovery snapshot is required by workspace discovery"
+    },
+    "contracts": {
+      "enabled": true,
+      "owner": "human",
+      "refreshable": false,
+      "reason": "detected contracts signals in this project"
+    }
+  }
+}
+```
+
+生命周期规则：
+
+- `human`：人工维护资产。`ctx setup` / `ctx update` 只创建缺失文件，不覆盖团队修改。
+- `machine`：机器生成资产。`ctx update`、`ctx analyze`、`ctx audit` 等命令可以刷新。
+- `hybrid`：混合资产。只刷新 Cortexa 受管区块，保留人工内容，例如 `specs/*/design.md` 中的 adapter snapshot。
+
+核心层默认启用：
+
+```txt
+.cortexa/
+├─ agents/          # 人维护：角色、职责、推荐技能
+├─ skills/          # 人维护：工程能力与执行步骤
+├─ specs/           # 混合：项目规范 + adapter snapshot
+├─ contexts/        # 机器：Context Packet schema 与上下文定义
+├─ adapters/        # 机器：adapter discovery snapshot
+├─ graphs/          # 机器：Repo Graph / dependency graph
+├─ runtime/         # 机器：sessions / cache 生命周期
+├─ ownership/       # 人维护：归属与边界映射
+├─ multi-agent/     # 混合：协作协议、交接 schema、agent 编排
+├─ workflows/       # 人维护：Context Flow 与团队流程
+├─ context-manifest.json
+├─ integrations.json
+├─ project-kit.json
+├─ starter-kit.json
+└─ workspace.json
+```
+
+扩展层按能力信号启用：
+
+```txt
+.cortexa/
+├─ contracts/       # OpenAPI、GraphQL、Proto、Prisma、事件、权限契约
+├─ domains/         # 业务域、术语、流程、bounded context
+├─ memory/          # ADR、历史约束、迁移背景、已知风险
+└─ reports/         # analyze/audit/review 生成报告
+```
+
+启用规则：
+
+- `contracts/`：检测到 OpenAPI、Swagger、GraphQL、Proto、Prisma、schema 或 API contract 信号。
+- `domains/`：检测到 `features/`、`modules/`、`domain/`、`domains/` 或明确业务模块边界。
+- `workflows/`：默认提供 Context Flow；检测到 CI/CD、release、deploy、migration、test pipeline 时记录对应能力信号。
+- `memory/`：检测到 ADR、decision records、CHANGELOG 或长期历史约束文档。
+- `reports/`：不在 setup 阶段默认生成，由 `ctx analyze`、`ctx audit`、`ctx review` 等命令按需创建。
+
+这个设计保证：
+
+- `agents` / `skills` / `specs` 仍是人和 Agent 的主入口。
+- `multi-agent` 负责多 agent 协作协议、角色边界和交接格式。
+- `adapters` / `graphs` / `contexts` / `runtime` 承载机器可刷新的结构化上下文。
+- `contracts` / `domains` / `memory` 只在项目确实需要时出现，避免所有项目背负空目录。
+- `context-manifest.json` 让 `ctx doctor`、`ctx update`、`ctx pack` 能判断哪些资产可刷新、哪些必须保留人工修改。
 
 `ctx teardown` 负责：
 
@@ -408,6 +583,8 @@ npm install @cortexa-labs/cli
 
 ## 8. 仓库结构建议
 
+### 8.1 Cortexa 自身仓库结构
+
 ```txt
 repo/
 ├─ apps/
@@ -432,6 +609,36 @@ repo/
 - `workflows/`：工程工作流层
 - `packages/`：共享基础包
 - `tools/`：辅助脚本与工具
+
+### 8.2 项目本地 `.cortexa` 结构
+
+安装到业务项目后，Cortexa 输出的是上下文资产系统，而不是 Cortexa 源码仓库结构的镜像：
+
+```txt
+project/
+└─ .cortexa/
+   ├─ agents/
+   ├─ skills/
+   ├─ specs/
+   ├─ contexts/
+   ├─ adapters/
+   ├─ graphs/
+   ├─ runtime/
+   ├─ ownership/
+   ├─ multi-agent/
+   ├─ workflows/
+   ├─ contracts/       # 按需
+   ├─ domains/         # 按需
+   ├─ memory/          # 按需
+   ├─ reports/         # 命令生成
+   ├─ context-manifest.json
+   ├─ integrations.json
+   ├─ project-kit.json
+   ├─ starter-kit.json
+   └─ workspace.json
+```
+
+目录是否出现由 manifest 和 adapter signals 共同决定。默认只保证核心上下文层存在；扩展层必须有明确能力信号或由后续命令生成。
 
 ## 9. 核心原则
 

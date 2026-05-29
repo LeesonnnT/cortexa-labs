@@ -5,7 +5,32 @@ import { basename, dirname, join, relative } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
 import { analyzeProject, selectContextScope } from "./adapters/project/index.js";
-import { adapterSnapshot, agentProfile, skillDocument, specDesignDocument, specRequirementsDocument, specSnapshotEnd, specSnapshotStart, specTasksDocument } from "./documents/index.js";
+import {
+  adapterSnapshot,
+  adaptersReadmeDocument,
+  agentHandoffSchemaDocument,
+  agentProfile,
+  contractsReadmeDocument,
+  contextPacketSchemaDocument,
+  contextsReadmeDocument,
+  domainsReadmeDocument,
+  graphsReadmeDocument,
+  memoryReadmeDocument,
+  multiAgentCollaborationDocument,
+  multiAgentProtocolDocument,
+  multiAgentReadmeDocument,
+  ownershipReadmeDocument,
+  reportsReadmeDocument,
+  runtimeReadmeDocument,
+  sessionsReadmeDocument,
+  skillDocument,
+  specDesignDocument,
+  specRequirementsDocument,
+  specSnapshotEnd,
+  specSnapshotStart,
+  specTasksDocument,
+  workflowDocument
+} from "./documents/index.js";
 import { createIntegrationRegistry, defaultEditorSelection, editorAliases, supportedEditors } from "./editor-integrations/index.js";
 import { projectAgentRegistry, projectSkillRegistry, projectSpecRegistry, starterKits, supportedTemplates, templateAliases, templateRegistry } from "./registries/index.js";
 
@@ -85,6 +110,7 @@ function createContextPacket(root, task) {
   const scope = selectContextScope(workspace, task);
   const specs = selectSpecsForTask(root, task);
   const skills = [...new Set([...inferSkills(task), ...selectSkillsForTask(root, task, specs)])];
+  const agents = selectAgentsForTask(root, task, skills, specs, scope);
 
   return {
     task,
@@ -105,6 +131,8 @@ function createContextPacket(root, task) {
     devDependencies: workspace.devDependencies,
     specs,
     skills,
+    agents,
+    multiAgent: selectMultiAgentPlan(task, workspace, scope, agents),
     generatedAt: new Date().toISOString()
   };
 }
@@ -191,6 +219,117 @@ function selectSkillsForTask(root, task, specs) {
   }
 
   return [...new Set(selected)];
+}
+
+function selectAgentsForTask(root, task, skills, specs, scope) {
+  const available = new Set(listProjectAgents(root));
+  const registryAgents = [...projectAgentRegistry, ...Object.values(starterKits).flatMap((kit) => kit.agents || [])];
+  const selected = [];
+
+  function add(id, reason) {
+    if (!available.has(id) || selected.some((agent) => agent.id === id)) {
+      return;
+    }
+
+    const registry = registryAgents.find((agent) => agent.id === id);
+    selected.push({
+      id,
+      title: registry?.title || id,
+      reason
+    });
+  }
+
+  const taskValue = task.toLowerCase();
+  add("project-context-analyst", "先确认最小上下文、包边界、功能边界和依赖关系。");
+
+  if (includesAny(taskValue, ["review", "评审", "审查", "风险"])) {
+    add("project-review-agent", "任务包含评审或风险判断。");
+  }
+
+  if (includesAny(taskValue, ["spec", "规范", "convention", "standard"]) || specs.length > 2) {
+    add("project-spec-maintainer", "任务涉及项目规范沉淀或多项 spec 对齐。");
+  }
+
+  if (includesAny(taskValue, ["implement", "build", "fix", "update", "change", "refactor", "实现", "修复", "修改", "重构"])) {
+    add("project-implementation-agent", "任务需要实际实现或修改代码。");
+  }
+
+  if (skills.includes("ui-consistency-review") || includesAny(taskValue, ["frontend", "ui", "页面", "组件", "样式"])) {
+    add("frontend-builder", "任务包含前端 UI 或组件实现。");
+    add("frontend-reviewer", "前端变更需要用户可见行为和可访问性检查。");
+  }
+
+  if (skills.includes("api-contract-review")) {
+    add("frontend-data-integrator", "任务涉及请求、状态、缓存或 API 契约。");
+  }
+
+  if (scope.length > 3 && selected.length === 1) {
+    add("project-implementation-agent", "scope 较多，建议由实现 agent 接续处理。");
+  }
+
+  return selected.slice(0, 5);
+}
+
+function listProjectAgents(root) {
+  const agentsDir = join(root, ".cortexa", "agents");
+  if (!existsSync(agentsDir)) {
+    return [];
+  }
+
+  return readdirSync(agentsDir, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && entry.name.endsWith(".md"))
+    .map((entry) => entry.name.slice(0, -3))
+    .sort();
+}
+
+function selectMultiAgentPlan(task, workspace, scope, agents) {
+  const taskValue = task.toLowerCase();
+  const wantsReview = includesAny(taskValue, ["review", "评审", "审查"]);
+  const wantsImplementation = includesAny(taskValue, ["implement", "build", "fix", "update", "change", "refactor", "实现", "修复", "修改", "重构"]);
+  const broadScope = scope.length > 3 || workspace.packages.length > 1 || workspace.features.length > 3;
+  const mode = broadScope && agents.length > 2 ? "parallel" : wantsReview && wantsImplementation ? "review-gate" : agents.length > 1 ? "pipeline" : "single";
+
+  return {
+    mode,
+    protocol: ".cortexa/multi-agent/collaboration.md",
+    handoffSchema: ".cortexa/multi-agent/handoff.schema.json",
+    recommendedOrder: orderAgentsForMode(mode, agents).map((agent) => agent.id),
+    notes: multiAgentNotes(mode)
+  };
+}
+
+function orderAgentsForMode(mode, agents) {
+  const priority = {
+    "project-context-analyst": 10,
+    "project-implementation-agent": 30,
+    "frontend-builder": 35,
+    "frontend-data-integrator": 35,
+    "design-system-maintainer": 35,
+    "accessibility-specialist": 40,
+    "frontend-performance-engineer": 40,
+    "frontend-test-engineer": 45,
+    "frontend-reviewer": mode === "review-gate" ? 70 : 50,
+    "project-review-agent": mode === "review-gate" ? 80 : 50,
+    "project-spec-maintainer": 90
+  };
+
+  return [...agents].sort((a, b) => (priority[a.id] || 60) - (priority[b.id] || 60) || a.id.localeCompare(b.id));
+}
+
+function multiAgentNotes(mode) {
+  if (mode === "parallel") {
+    return "按互不重叠的 scope 分配 agent，并在合并前进行 review-gate。";
+  }
+
+  if (mode === "review-gate") {
+    return "实现完成后必须交给 review agent 检查行为风险、约定漂移和验证缺口。";
+  }
+
+  if (mode === "pipeline") {
+    return "按推荐顺序交接，每次交接使用 handoff schema 摘要上下文。";
+  }
+
+  return "单 agent 即可处理；如扩大 scope，再切换到 pipeline 或 review-gate。";
 }
 
 function listProjectSpecs(root) {
@@ -642,7 +781,7 @@ function updateProjectKit(root, templateValue = "auto") {
 }
 
 function writeProjectKit(root, discovery, template, options = {}) {
-  const results = [];
+  const results = writeRuntimeStructure(root, discovery, template);
 
   for (const spec of projectSpecRegistry) {
     const path = join(root, ".cortexa", "specs", spec.id);
@@ -678,7 +817,401 @@ function writeProjectKit(root, discovery, template, options = {}) {
   return results;
 }
 
+function writeRuntimeStructure(root, discovery, template) {
+  const results = [];
+  const cortexaDir = join(root, ".cortexa");
+  const manifest = createContextManifest(root, discovery, template);
+
+  const docs = [
+    {
+      type: "context",
+      id: "readme",
+      path: join(cortexaDir, "contexts", "README.md"),
+      content: contextsReadmeDocument()
+    },
+    {
+      type: "adapter",
+      id: "readme",
+      path: join(cortexaDir, "adapters", "README.md"),
+      content: adaptersReadmeDocument()
+    },
+    {
+      type: "graph",
+      id: "readme",
+      path: join(cortexaDir, "graphs", "README.md"),
+      content: graphsReadmeDocument()
+    },
+    {
+      type: "workflow",
+      id: "context-flow",
+      path: join(cortexaDir, "workflows", "context-flow.md"),
+      content: workflowDocument()
+    },
+    {
+      type: "runtime",
+      id: "readme",
+      path: join(cortexaDir, "runtime", "README.md"),
+      content: runtimeReadmeDocument()
+    },
+    {
+      type: "runtime",
+      id: "sessions",
+      path: join(cortexaDir, "runtime", "sessions", "README.md"),
+      content: sessionsReadmeDocument()
+    },
+    {
+      type: "ownership",
+      id: "readme",
+      path: join(cortexaDir, "ownership", "README.md"),
+      content: ownershipReadmeDocument()
+    },
+    {
+      type: "multi-agent",
+      id: "readme",
+      path: join(cortexaDir, "multi-agent", "README.md"),
+      content: multiAgentReadmeDocument()
+    },
+    {
+      type: "multi-agent",
+      id: "collaboration",
+      path: join(cortexaDir, "multi-agent", "collaboration.md"),
+      content: multiAgentCollaborationDocument()
+    }
+  ];
+
+  for (const [layer, asset] of Object.entries(manifest.generatedAssets)) {
+    if (!asset.enabled || !asset.createDirectory || !asset.readme) {
+      continue;
+    }
+
+    docs.push({
+      type: layer,
+      id: "readme",
+      path: join(cortexaDir, layer, "README.md"),
+      content: asset.readme
+    });
+  }
+
+  for (const doc of docs) {
+    results.push({
+      type: doc.type,
+      id: doc.id,
+      path: relative(root, doc.path),
+      status: writeIfMissing(doc.path, doc.content)
+    });
+  }
+
+  const generated = [
+    {
+      type: "context",
+      id: "context-packet-schema",
+      path: join(cortexaDir, "contexts", "context-packet.schema.json"),
+      value: contextPacketSchemaDocument()
+    },
+    {
+      type: "adapter",
+      id: "discovery",
+      path: join(cortexaDir, "adapters", "discovery.json"),
+      value: adapterDiscoverySnapshot(discovery, template)
+    },
+    {
+      type: "graph",
+      id: "repo-graph",
+      path: join(cortexaDir, "graphs", "repo-graph.json"),
+      value: repoGraphSnapshot(discovery)
+    },
+    {
+      type: "multi-agent",
+      id: "protocol",
+      path: join(cortexaDir, "multi-agent", "protocol.json"),
+      value: multiAgentProtocolDocument([...projectAgentRegistry, ...Object.values(starterKits).flatMap((kit) => kit.agents || [])])
+    },
+    {
+      type: "multi-agent",
+      id: "handoff-schema",
+      path: join(cortexaDir, "multi-agent", "handoff.schema.json"),
+      value: agentHandoffSchemaDocument()
+    }
+  ];
+
+  for (const item of generated) {
+    writeJson(item.path, item.value);
+    results.push({
+      type: item.type,
+      id: item.id,
+      path: relative(root, item.path),
+      status: "updated"
+    });
+  }
+
+  const ownershipPath = join(cortexaDir, "ownership", "ownership-map.json");
+  results.push({
+    type: "ownership",
+    id: "ownership-map",
+    path: relative(root, ownershipPath),
+    status: writeIfMissing(ownershipPath, `${JSON.stringify(ownershipMapSnapshot(discovery), null, 2)}\n`)
+  });
+
+  const manifestPath = join(cortexaDir, "context-manifest.json");
+  writeJson(manifestPath, stripManifestRuntimeFields(manifest));
+  results.push({
+    type: "manifest",
+    id: "context-manifest",
+    path: relative(root, manifestPath),
+    status: "updated"
+  });
+
+  mkdirSync(join(cortexaDir, "runtime", "cache"), { recursive: true });
+  return results;
+}
+
+function createContextManifest(root, discovery, template) {
+  const capabilities = detectContextCapabilities(root, discovery);
+  const coreLayers = ["agents", "skills", "specs", "contexts", "adapters", "graphs", "runtime", "ownership", "multi-agent"];
+  const generatedAssets = {
+    agents: managedAsset("human", "core collaboration entrypoint", false, true, null, false),
+    skills: managedAsset("human", "core engineering capability entrypoint", false, true, null, false),
+    specs: managedAsset("hybrid", "core project conventions with managed adapter snapshots", false, true, null, false),
+    contexts: managedAsset("machine", "Context Packet definitions are required by ctx pack", true, true, null, false),
+    adapters: managedAsset("machine", "adapter discovery snapshot is required by workspace discovery", true, true, null, false),
+    graphs: managedAsset("machine", "repo graph snapshot is required by graph-driven context resolve", true, true, null, false),
+    runtime: managedAsset("machine", "runtime sessions and cache are reserved for task isolation", true, true, null, false),
+    ownership: managedAsset("human", "ownership map guides context boundaries and should preserve team edits", false, true, null, false),
+    "multi-agent": managedAsset("hybrid", "multi-agent collaboration protocol and handoff schema", true, true, null, false),
+    workflows: managedAsset("human", "default Context Flow is useful for all project types", false, true),
+    contracts: managedAsset("human", capabilityReason(capabilities, "contracts"), false, capabilities.includes("contracts"), contractsReadmeDocument()),
+    domains: managedAsset("human", capabilityReason(capabilities, "domains"), false, capabilities.includes("domains"), domainsReadmeDocument()),
+    memory: managedAsset("human", capabilityReason(capabilities, "memory"), false, capabilities.includes("memory"), memoryReadmeDocument()),
+    reports: managedAsset("machine", "reports are created by analyze, audit, or review commands", true, false, reportsReadmeDocument())
+  };
+  const enabledLayers = [
+    ...coreLayers,
+    "workflows",
+    ...["contracts", "domains", "memory", "reports"].filter((layer) => generatedAssets[layer].enabled)
+  ];
+
+  return {
+    version: 1,
+    template: template.id,
+    updatedAt: new Date().toISOString(),
+    lifecycle: {
+      human: "人工维护资产。setup/update 只创建缺失文件，不覆盖团队修改。",
+      machine: "机器生成资产。setup/update 或分析命令可以刷新。",
+      hybrid: "混合资产。仅刷新受管区块，保留人工内容。"
+    },
+    enabledLayers,
+    detectedCapabilities: capabilities,
+    generatedAssets
+  };
+}
+
+function managedAsset(owner, reason, refreshable, enabled = true, readme = null, createDirectory = enabled) {
+  return {
+    enabled,
+    owner,
+    refreshable,
+    createDirectory,
+    reason,
+    readme
+  };
+}
+
+function stripManifestRuntimeFields(manifest) {
+  return {
+    ...manifest,
+    generatedAssets: Object.fromEntries(
+      Object.entries(manifest.generatedAssets).map(([layer, asset]) => [
+        layer,
+        {
+          enabled: asset.enabled,
+          owner: asset.owner,
+          refreshable: asset.refreshable,
+          createDirectory: asset.createDirectory,
+          reason: asset.reason
+        }
+      ])
+    )
+  };
+}
+
+function capabilityReason(capabilities, layer) {
+  if (capabilities.includes(layer)) {
+    return `detected ${layer} signals in this project`;
+  }
+
+  return `no ${layer} signals detected yet`;
+}
+
+function detectContextCapabilities(root, discovery) {
+  const capabilities = new Set();
+  const packageJson = readJson(join(root, "package.json"));
+  const files = listWorkspaceFiles(root, 1000);
+  const names = new Set(files.map((file) => file.toLowerCase()));
+  const includesFile = (...candidates) => candidates.some((candidate) => names.has(candidate.toLowerCase()));
+  const includesPattern = (pattern) => files.some((file) => pattern.test(file));
+
+  if (discovery.frameworks.some((framework) => ["vue", "nuxt", "react", "nextjs", "vite"].includes(framework))) {
+    capabilities.add("frontend");
+  }
+
+  if (discovery.frameworks.includes("nest") || discovery.semanticEntrypoints.some((entrypoint) => entrypoint.kind === "server-entry")) {
+    capabilities.add("backend");
+  }
+
+  if (discovery.workspace !== "single-package" || discovery.packages.length > 0) {
+    capabilities.add("monorepo");
+  }
+
+  if (
+    includesFile("openapi.json", "openapi.yaml", "openapi.yml", "swagger.json", "swagger.yaml", "swagger.yml", "schema.prisma") ||
+    includesPattern(/(^|\/)(schema|api|openapi|swagger)\.(graphql|gql|proto)$/i) ||
+    includesPattern(/\.(graphql|gql|proto)$/i)
+  ) {
+    capabilities.add("contracts");
+  }
+
+  if (
+    discovery.features.some((feature) => ["feature", "module-feature"].includes(feature.kind)) ||
+    files.some((file) => /(^|\/)(domain|domains|modules|features)\//i.test(file))
+  ) {
+    capabilities.add("domains");
+  }
+
+  if (
+    includesPattern(/(^|\/)\.github\/workflows\//i) ||
+    includesFile(".gitlab-ci.yml", ".gitlab-ci.yaml") ||
+    discovery.semanticEntrypoints.some((entrypoint) => entrypoint.kind === "script" && /deploy|release|migrat|ci|test|build/i.test(entrypoint.command || "")) ||
+    Object.values(packageJson?.scripts || {}).some((script) => /deploy|release|migrat|ci|test|build/i.test(script))
+  ) {
+    capabilities.add("workflows");
+  }
+
+  if (
+    includesFile("CHANGELOG.md", "HISTORY.md") ||
+    files.some((file) => /(^|\/)(adr|adrs|decisions|decision-records)\//i.test(file)) ||
+    files.some((file) => /(^|\/)docs\/(adr|adrs|decisions)\//i.test(file))
+  ) {
+    capabilities.add("memory");
+  }
+
+  return [...capabilities].sort();
+}
+
+function listWorkspaceFiles(root, limit = 1000) {
+  const ignored = new Set([".git", ".cortexa", "node_modules", "dist", "build", "coverage", ".next", ".nuxt", "out"]);
+  const files = [];
+
+  function visit(directory, prefix = "") {
+    if (files.length >= limit || !existsSync(directory)) {
+      return;
+    }
+
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+      if (files.length >= limit) {
+        return;
+      }
+
+      const childPrefix = prefix ? `${prefix}/${entry.name}` : entry.name;
+      const childPath = join(directory, entry.name);
+
+      if (entry.isDirectory()) {
+        if (!ignored.has(entry.name)) {
+          visit(childPath, childPrefix);
+        }
+        continue;
+      }
+
+      if (entry.isFile()) {
+        files.push(childPrefix);
+      }
+    }
+  }
+
+  visit(root);
+  return files.sort();
+}
+
+function adapterDiscoverySnapshot(discovery, template) {
+  return {
+    version: 1,
+    template: template.id,
+    updatedAt: new Date().toISOString(),
+    project: discovery.name,
+    packageManager: discovery.packageManager,
+    framework: discovery.framework,
+    frameworks: discovery.frameworks,
+    workspace: discovery.workspace,
+    workspaces: discovery.workspaces,
+    adapters: discovery.adapters,
+    directories: discovery.directories,
+    languages: discovery.languages,
+    sourceSummary: discovery.sourceSummary,
+    packages: discovery.packages,
+    entrypoints: discovery.semanticEntrypoints,
+    features: discovery.features
+  };
+}
+
+function repoGraphSnapshot(discovery) {
+  return {
+    version: 1,
+    updatedAt: new Date().toISOString(),
+    project: discovery.name,
+    nodes: {
+      packages: discovery.packages.map((pkg) => ({
+        id: pkg.name,
+        path: pkg.path,
+        framework: pkg.framework
+      })),
+      entrypoints: discovery.semanticEntrypoints.map((entrypoint) => ({
+        id: entrypoint.path,
+        path: entrypoint.path,
+        kind: entrypoint.kind
+      })),
+      features: discovery.features.map((feature) => ({
+        id: feature.path,
+        name: feature.name,
+        path: feature.path,
+        kind: feature.kind
+      }))
+    },
+    edges: {
+      dependencies: discovery.dependencyGraph || {},
+      sourceImports: discovery.sourceGraph || {}
+    }
+  };
+}
+
+function ownershipMapSnapshot(discovery) {
+  return {
+    version: 1,
+    updatedAt: new Date().toISOString(),
+    project: discovery.name,
+    owners: [],
+    boundaries: {
+      packages: discovery.packages.map((pkg) => ({
+        path: pkg.path,
+        owner: null,
+        notes: ""
+      })),
+      features: discovery.features.map((feature) => ({
+        path: feature.path,
+        owner: null,
+        notes: ""
+      })),
+      lowTrust: [],
+      generated: ["dist", "build", "coverage"]
+    },
+    openQuestions: [
+      "哪些包负责公共 API、共享工具和面向用户的应用？",
+      "哪些目录应视为生成产物、历史代码或低可信上下文？",
+      "常见变更的最低验证命令是什么？"
+    ]
+  };
+}
+
 function writeProjectKitRegistry(root, discovery, template) {
+  const manifest = readJson(join(root, ".cortexa", "context-manifest.json"));
   writeJson(join(root, ".cortexa", "project-kit.json"), {
     version: 1,
     template: template.id,
@@ -706,7 +1239,15 @@ function writeProjectKitRegistry(root, discovery, template) {
     },
     specs: projectSpecRegistry.map((spec) => spec.id),
     skills: projectSkillRegistry.map((skill) => skill.id),
-    agents: projectAgentRegistry.map((agent) => agent.id)
+    agents: projectAgentRegistry.map((agent) => agent.id),
+    contexts: ["context-packet.schema.json"],
+    adapters: ["discovery.json"],
+    graphs: ["repo-graph.json"],
+    multiAgent: ["collaboration.md", "protocol.json", "handoff.schema.json"],
+    workflows: ["context-flow.md"],
+    ownership: ["ownership-map.json"],
+    enabledLayers: manifest?.enabledLayers || [],
+    detectedCapabilities: manifest?.detectedCapabilities || []
   });
 }
 

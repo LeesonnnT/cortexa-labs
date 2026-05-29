@@ -1,16 +1,16 @@
 # Cortexa Labs
 
-Cortexa adds structured AI workspace context to an existing project.
+Cortexa 为现有工程项目提供结构化的 AI 工作区上下文，让 AI 在更小的上下文范围内理解项目、选择相关文件并执行工程任务。
 
-## Quick Start
+## 快速开始
 
 ```bash
 npm create cortexa@latest
 ```
 
-The initializer installs `@cortexa-labs/cli`, asks for your project template and AI editor integrations, then writes the selected context files.
+初始化器会安装 `@cortexa-labs/cli`，引导你选择项目模板和 AI 编辑器集成，然后写入对应的上下文资产。
 
-## Common Commands
+## 常用命令
 
 ```bash
 npm create cortexa@latest -- --yes
@@ -21,53 +21,71 @@ npx --no-install ctx update
 npx --no-install ctx teardown
 ```
 
-`--yes` uses automatic template detection and the Codex integration. Pass `--template` and `--editors` when you already know the setup you want.
+`--yes` 会使用自动模板检测和 Codex 集成。如果你已经知道需要的配置，可以传入 `--template` 和 `--editors`。
 
-## Uninstall
+## 卸载
 
-To remove Cortexa from a project, first clean up generated editor integrations and metadata:
+从项目中移除 Cortexa 时，先清理生成的编辑器集成和元数据：
 
 ```bash
 npx --no-install ctx teardown --purge
 ```
 
-Then uninstall the local CLI dependency:
+然后卸载本地 CLI 依赖：
 
 ```bash
 npm uninstall --save-dev @cortexa-labs/cli
 ```
 
-If you installed the CLI globally, remove it with:
+如果你安装的是全局 CLI，使用：
 
 ```bash
 npm uninstall -g @cortexa-labs/cli
 ```
 
-## What Gets Created
+## 会生成什么
 
-Depending on your choices, Cortexa creates:
+Cortexa 会在项目中生成 `.cortexa/` 上下文资产系统：
 
-- `.cortexa/workspace.json`
-- `.cortexa/project-kit.json`
-- project specs under `.cortexa/specs/<spec>/requirements.md`, `design.md`, and `tasks.md`
-- reusable project skills under `.cortexa/skills/<skill>/SKILL.md` and Claude-style agents under `.cortexa/agents/<agent>.md`
-- `AGENTS.md` or editor-native rule files
-- optional frontend starter skills and agents under `.cortexa/skills/` and `.cortexa/agents/`
+```txt
+.cortexa/
+├─ agents/          # Agent 角色与职责
+├─ skills/          # 工程技能与执行步骤
+├─ specs/           # 项目规范：requirements / design / tasks
+├─ contexts/        # Context Packet 定义与 schema
+├─ adapters/        # adapter discovery 快照
+├─ graphs/          # Repo Graph 快照
+├─ runtime/         # sessions / cache 生命周期预留
+├─ ownership/       # 项目边界与归属映射
+├─ multi-agent/     # 多 agent 协作协议、交接 schema 和编排规则
+├─ workflows/       # Context Flow 与团队流程
+├─ contracts/       # 按需：API、事件、数据模型、权限契约
+├─ domains/         # 按需：业务域、术语、流程
+├─ memory/          # 按需：ADR、历史约束、已知风险
+├─ reports/         # 按命令生成：分析、审计、评审报告
+├─ context-manifest.json
+├─ integrations.json
+├─ project-kit.json
+├─ starter-kit.json
+└─ workspace.json
+```
 
-Skills use a `SKILL.md` directory entrypoint, agents use Claude-style Markdown files with YAML frontmatter, and specs use Kiro-style `requirements.md`, `design.md`, and `tasks.md` files.
+`context-manifest.json` 会记录哪些上下文层已启用、检测到了哪些能力信号，以及每类资产由人工维护、机器刷新还是混合管理。
 
-Run `ctx update` after adding packages, features, entrypoints, or dependencies. It refreshes Cortexa-managed adapter snapshots while preserving project-specific spec text.
+`ctx update` 会在项目结构变化后刷新 Cortexa 管理的 adapter 快照、repo graph 和 manifest，同时保留团队手写的 specs、skills、agents、ownership、domains、contracts 和 memory 内容。
 
-## Packages
+`ctx pack "<task>"` 会返回推荐的 `agents` 和 `multiAgent` 协作计划。复杂任务可以按 `.cortexa/multi-agent/collaboration.md` 中的协议拆分为 context analyst、implementation agent、review agent、spec maintainer 等角色，并通过 handoff schema 交接上下文。
 
-- `create-cortexa` - guided initializer used by `npm create cortexa@latest`
-- `@cortexa-labs/cli` - local `ctx` command installed into your project
+## 包
 
-## Repository Layout
+- `create-cortexa`：`npm create cortexa@latest` 使用的交互式初始化器
+- `@cortexa-labs/cli`：安装到项目中的本地 `ctx` 命令
 
-- `apps/` - initializer, CLI, and future dashboard entrypoints
-- `workspace/` - runtime, graph, resolver, ownership
-- `adapters/` - framework/project adapters
-- `skills/` - normalized engineering skills
-- `workflows/` - task pipelines
-- `packages/` - shared utilities
+## 仓库结构
+
+- `apps/`：初始化器、CLI 和未来的可视化入口
+- `workspace/`：workspace runtime、graph、resolver、ownership
+- `adapters/`：框架与项目 adapter
+- `skills/`：标准化工程技能
+- `workflows/`：任务流水线
+- `packages/`：共享工具包

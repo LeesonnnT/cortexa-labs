@@ -1,22 +1,22 @@
 # create-cortexa
 
-Interactive initializer for adding Cortexa to an existing npm project.
+用于把 Cortexa 接入现有 npm 项目的交互式初始化器。
 
-## Usage
+## 使用
 
 ```bash
 npm create cortexa@latest
 ```
 
-The initializer installs `@cortexa-labs/cli` as a development dependency, then guides you through project template and editor integration selection.
+初始化器会把 `@cortexa-labs/cli` 安装为开发依赖，然后引导你选择项目模板和编辑器集成。
 
-For a non-interactive minimal setup:
+非交互式最小配置：
 
 ```bash
 npm create cortexa@latest -- --yes
 ```
 
-To select options directly:
+直接指定选项：
 
 ```bash
 npm create cortexa@latest -- --template frontend --editors codex,cursor
