@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
-import { basename, extname, join, relative } from "node:path";
+import { basename, dirname, extname, join, relative } from "node:path";
 
 const ignoredDirectories = new Set([
   ".cortexa",
@@ -15,6 +15,20 @@ const ignoredDirectories = new Set([
 
 const sourceExtensions = new Set([".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".vue"]);
 const maxScannedFiles = 600;
+const taskIntentTokens = new Set([
+  "add",
+  "audit",
+  "build",
+  "change",
+  "debug",
+  "fix",
+  "implement",
+  "improve",
+  "refactor",
+  "review",
+  "test",
+  "update"
+]);
 
 export function analyzeProject(root) {
   const packageJson = readJson(join(root, "package.json"));
@@ -22,6 +36,7 @@ export function analyzeProject(root) {
   const workspacePatterns = detectWorkspacePatterns(root, packageJson, packageManager);
   const packages = discoverPackages(root, workspacePatterns);
   const sourceFiles = listSourceFiles(root);
+  const sourceGraph = buildSourceGraph(root, sourceFiles);
   const frameworks = [
     ...new Set([
       ...detectFrameworks(root, packageJson, sourceFiles),
@@ -30,7 +45,7 @@ export function analyzeProject(root) {
   ];
   const adapters = selectAdapters(packageManager, frameworks, packages, sourceFiles);
   const semanticEntrypoints = discoverEntrypoints(root, packageJson, sourceFiles, frameworks);
-  const features = discoverFeatures(root, sourceFiles);
+  const features = discoverAllFeatures(root, sourceFiles, packages);
 
   return {
     adapters,
@@ -43,7 +58,8 @@ export function analyzeProject(root) {
     entrypoints: semanticEntrypoints.map((entrypoint) => entrypoint.path),
     semanticEntrypoints,
     features,
-    dependencyGraph: buildDependencyGraph(root, packageJson, packages),
+    dependencyGraph: buildDependencyGraph(root, packageJson, packages, sourceGraph),
+    sourceGraph,
     languages: detectLanguages(sourceFiles),
     sourceSummary: {
       filesScanned: sourceFiles.length,
@@ -53,15 +69,9 @@ export function analyzeProject(root) {
 }
 
 export function selectContextScope(analysis, task) {
-  const normalizedTask = normalize(task);
-  const matchedFeatures = analysis.features.filter((feature) =>
-    [feature.name, feature.path, feature.kind].some((value) => normalize(value).includes(normalizedTask) || normalizedTask.includes(normalize(value)))
-  );
-  const matchedPackages = analysis.packages.filter((pkg) =>
-    [pkg.name, pkg.path, pkg.framework].some((value) => normalize(value).includes(normalizedTask) || normalizedTask.includes(normalize(value)))
-  );
-
-  const scoped = [...matchedFeatures.map((feature) => feature.path), ...matchedPackages.map((pkg) => pkg.path)];
+  const scoped = scoreContextCandidates(analysis, task)
+    .slice(0, 8)
+    .map((match) => match.path);
   if (scoped.length > 0) {
     return [...new Set(scoped)];
   }
@@ -82,7 +92,7 @@ function readJson(path) {
     return null;
   }
 
-  return JSON.parse(readFileSync(path, "utf8"));
+  return JSON.parse(readFileSync(path, "utf8").replace(/^\uFEFF/, ""));
 }
 
 function readText(path) {
@@ -99,6 +109,91 @@ function normalizePath(value) {
 
 function normalize(value) {
   return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+function tokenize(value) {
+  return normalize(value).split(" ").filter((token) => token.length >= 2);
+}
+
+function scoreText(taskTokens, value, weight = 1) {
+  const normalizedValue = normalize(value);
+  if (!normalizedValue) {
+    return 0;
+  }
+
+  const valueTokens = new Set(tokenize(normalizedValue));
+  let score = 0;
+
+  for (const token of taskTokens) {
+    if (valueTokens.has(token)) {
+      score += 3 * weight;
+    } else if (normalizedValue.includes(token)) {
+      score += weight;
+    }
+  }
+
+  return score;
+}
+
+function scoreContextCandidates(analysis, task) {
+  const taskTokens = tokenize(task).filter((token) => !taskIntentTokens.has(token));
+  if (taskTokens.length === 0) {
+    return [];
+  }
+
+  const candidates = [];
+
+  for (const feature of analysis.features || []) {
+    const score =
+      scoreText(taskTokens, feature.name, 4) +
+      scoreText(taskTokens, feature.path, 3) +
+      scoreText(taskTokens, feature.kind, 1) +
+      scoreText(taskTokens, feature.files?.join(" "), 1);
+
+    if (score > 0) {
+      candidates.push({ path: feature.path, score, kind: "feature" });
+    }
+  }
+
+  for (const pkg of analysis.packages || []) {
+    const signals = [
+      pkg.name,
+      pkg.path,
+      basename(pkg.path || ""),
+      pkg.framework,
+      ...(pkg.frameworks || []),
+      ...(pkg.entrypoints || []),
+      ...Object.keys(pkg.scripts || {}),
+      ...Object.values(pkg.scripts || {}),
+      ...Object.keys(pkg.bin || {}),
+      ...(pkg.dependencies || []),
+      ...(pkg.devDependencies || [])
+    ];
+    const score =
+      scoreText(taskTokens, pkg.name, 5) +
+      scoreText(taskTokens, pkg.path, 4) +
+      scoreText(taskTokens, signals.join(" "), 1);
+
+    if (score > 0) {
+      candidates.push({ path: pkg.path, score, kind: "package" });
+    }
+  }
+
+  for (const entrypoint of analysis.semanticEntrypoints || []) {
+    const score =
+      scoreText(taskTokens, entrypoint.path, 2) +
+      scoreText(taskTokens, entrypoint.kind, 1) +
+      scoreText(taskTokens, entrypoint.command, 1);
+
+    if (score > 0) {
+      candidates.push({ path: entrypoint.path, score, kind: "entrypoint" });
+    }
+  }
+
+  return uniqueBy(
+    candidates.sort((a, b) => b.score - a.score || a.path.localeCompare(b.path)),
+    (candidate) => candidate.path
+  );
 }
 
 function detectPackageManager(root) {
@@ -177,17 +272,26 @@ function discoverPackages(root, patterns) {
       const relPath = normalizePath(relative(root, packageRoot));
       const sourceFiles = listSourceFiles(packageRoot, 120);
       const frameworks = detectFrameworks(packageRoot, packageJson, sourceFiles);
+      const semanticEntrypoints = discoverEntrypoints(packageRoot, packageJson, sourceFiles, frameworks);
       packages.push({
         name: packageJson.name || basename(packageRoot),
         path: relPath,
         private: Boolean(packageJson.private),
         framework: frameworks[0] || detectLanguage(sourceFiles),
         frameworks,
-        entrypoints: discoverEntrypoints(packageRoot, packageJson, sourceFiles, frameworks).map((entrypoint) =>
-          normalizePath(join(relPath, entrypoint.path))
-        ),
+        entrypoints: semanticEntrypoints.map((entrypoint) => normalizePath(join(relPath, entrypoint.path))),
+        semanticEntrypoints: semanticEntrypoints.map((entrypoint) => ({
+          ...entrypoint,
+          path: normalizePath(join(relPath, entrypoint.path))
+        })),
+        scripts: packageJson.scripts || {},
+        bin: packageJson.bin || {},
         dependencies: Object.keys(packageJson.dependencies || {}).sort(),
-        devDependencies: Object.keys(packageJson.devDependencies || {}).sort()
+        devDependencies: Object.keys(packageJson.devDependencies || {}).sort(),
+        sourceSummary: {
+          filesScanned: sourceFiles.length,
+          extensions: summarizeExtensions(sourceFiles)
+        }
       });
     }
   }
@@ -450,6 +554,28 @@ function inferScriptRuntime(command) {
   return "unknown";
 }
 
+function discoverAllFeatures(root, sourceFiles, packages) {
+  return uniqueBy(
+    [
+      ...discoverFeatures(root, sourceFiles),
+      ...packages.flatMap((pkg) => discoverPackageFeatures(root, pkg))
+    ],
+    (feature) => feature.path
+  ).sort((a, b) => a.path.localeCompare(b.path));
+}
+
+function discoverPackageFeatures(root, pkg) {
+  const packageRoot = join(root, pkg.path);
+  const packageFiles = listSourceFiles(packageRoot, 160);
+
+  return discoverFeatures(packageRoot, packageFiles).map((feature) => ({
+    ...feature,
+    package: pkg.name,
+    path: normalizePath(join(pkg.path, feature.path)),
+    files: feature.files.map((file) => normalizePath(join(pkg.path, file)))
+  }));
+}
+
 function discoverFeatures(root, sourceFiles) {
   const featureRoots = ["features", "src/features", "modules", "src/modules", "views", "src/views", "app", "pages", "src/pages"];
   const features = [];
@@ -494,7 +620,7 @@ function classifyFeature(featureRoot) {
   return "feature";
 }
 
-function buildDependencyGraph(root, packageJson, packages) {
+function buildDependencyGraph(root, packageJson, packages, sourceGraph) {
   const rootName = packageJson?.name || basename(root);
   const nodes = [
     {
@@ -505,6 +631,7 @@ function buildDependencyGraph(root, packageJson, packages) {
   ];
   const edges = [];
   const internalPackageNames = new Set(packages.map((pkg) => pkg.name));
+  const packagesByPath = [...packages].sort((a, b) => b.path.length - a.path.length);
 
   for (const pkg of packages) {
     nodes.push({
@@ -529,6 +656,22 @@ function buildDependencyGraph(root, packageJson, packages) {
     }
   }
 
+  for (const edge of sourceGraph.edges) {
+    const fromPackage = packagesByPath.find((pkg) => edge.from === pkg.path || edge.from.startsWith(`${pkg.path}/`));
+    const toPackage = packagesByPath.find((pkg) => edge.to === pkg.path || edge.to.startsWith(`${pkg.path}/`));
+
+    if (!fromPackage || !toPackage || fromPackage.name === toPackage.name) {
+      continue;
+    }
+
+    edges.push({
+      from: fromPackage.name,
+      to: toPackage.name,
+      type: "source-import",
+      via: edge.from
+    });
+  }
+
   for (const dependency of Object.keys(packageJson?.dependencies || {}).sort()) {
     edges.push({
       from: rootName,
@@ -541,6 +684,67 @@ function buildDependencyGraph(root, packageJson, packages) {
     nodes: uniqueBy(nodes, (node) => node.id),
     edges: uniqueBy(edges, (edge) => `${edge.from}:${edge.to}:${edge.type}`)
   };
+}
+
+function buildSourceGraph(root, sourceFiles) {
+  const fileSet = new Set(sourceFiles);
+  const edges = [];
+
+  for (const file of sourceFiles) {
+    const imports = extractImports(readText(join(root, file)));
+
+    for (const specifier of imports) {
+      if (!specifier.startsWith(".")) {
+        continue;
+      }
+
+      const resolved = resolveImportPath(file, specifier, fileSet);
+      if (resolved) {
+        edges.push({
+          from: file,
+          to: resolved,
+          type: "imports"
+        });
+      }
+    }
+  }
+
+  return {
+    nodes: sourceFiles.map((file) => ({ id: file, type: "source-file" })),
+    edges: uniqueBy(edges, (edge) => `${edge.from}:${edge.to}:${edge.type}`)
+  };
+}
+
+function extractImports(content) {
+  const imports = [];
+  const patterns = [
+    /\bimport\s+(?:[^'"]+\s+from\s+)?["']([^"']+)["']/g,
+    /\bexport\s+[^'"]+\s+from\s+["']([^"']+)["']/g,
+    /\brequire\(\s*["']([^"']+)["']\s*\)/g,
+    /\bimport\(\s*["']([^"']+)["']\s*\)/g
+  ];
+
+  for (const pattern of patterns) {
+    let match = pattern.exec(content);
+    while (match) {
+      imports.push(match[1]);
+      match = pattern.exec(content);
+    }
+  }
+
+  return imports;
+}
+
+function resolveImportPath(fromFile, specifier, fileSet) {
+  const baseDir = dirname(fromFile);
+  const target = normalizePath(join(baseDir, specifier));
+  const candidates = [
+    target,
+    ...[...sourceExtensions].map((extension) => `${target}${extension}`),
+    ...[...sourceExtensions].map((extension) => normalizePath(join(target, `index${extension}`)))
+  ];
+
+  return candidates.find((candidate) => fileSet.has(candidate)) || null;
 }
 
 function summarizeExtensions(sourceFiles) {

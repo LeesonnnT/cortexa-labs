@@ -59,7 +59,25 @@ The `frontend` template preinstalls commonly used profiles:
 
 Generated starter profiles are created only when missing, so subsequent setup runs keep project-specific edits.
 
-This creates `.cortexa/workspace.json` and `AGENTS.md` by default. Pass `--editors` to generate rules for more AI editors and coding agents, including:
+This creates `.cortexa/workspace.json`, `.cortexa/project-kit.json`, project specs, reusable skills, reusable agents, and `AGENTS.md` by default. The project kit is seeded from adapter output so a newly installed project has editable conventions for:
+
+- Coding conventions: `.cortexa/specs/coding-conventions.md`
+- API/interface conventions: `.cortexa/specs/api-conventions.md`
+- Documentation conventions: `.cortexa/specs/documentation-conventions.md`
+- UI conventions: `.cortexa/specs/ui-conventions.md`
+- Project understanding: `.cortexa/specs/project-overview.md`
+
+The generated specs are intentionally project-local. Keep team decisions there so `ctx pack "<task>"` can return the relevant spec paths alongside package, feature, and dependency context.
+
+When the project structure changes, refresh Cortexa's adapter-derived snapshot without overwriting team-written convention text:
+
+```bash
+npx --no-install ctx update
+```
+
+`update` refreshes `.cortexa/project-kit.json`, updates the managed adapter snapshot block inside each `.cortexa/specs/*.md` file, and creates any missing built-in specs, skills, or agents. It does not replace custom content outside the Cortexa adapter snapshot markers.
+
+Pass `--editors` to generate rules for more AI editors and coding agents, including:
 
 - AGENTS.md-compatible agents: `AGENTS.md`
 - Codex: `AGENTS.md`
@@ -113,6 +131,8 @@ npx --no-install ctx doctor
 ```
 
 `discover` runs the built-in project adapters and emits semantic fields such as `adapters`, `frameworks`, `features`, `packages`, `semanticEntrypoints`, and `dependencyGraph`.
+
+`pack` combines adapter-selected scope with matching specs and skills. For example, an API task includes the project overview, coding conventions, API conventions, and API contract skill when those files were created by setup.
 
 Current adapter coverage:
 

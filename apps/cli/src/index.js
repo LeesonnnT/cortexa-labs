@@ -11,6 +11,8 @@ const args = process.argv.slice(3);
 const cwd = process.cwd();
 const managedStart = "<!-- cortexa:start -->";
 const managedEnd = "<!-- cortexa:end -->";
+const specSnapshotStart = "<!-- cortexa:adapter-snapshot:start -->";
+const specSnapshotEnd = "<!-- cortexa:adapter-snapshot:end -->";
 
 const integrationRegistry = [
   { id: "agents", label: "AGENTS.md compatible agents", path: "AGENTS.md", content: () => markdownRule("AGENTS.md compatible agents"), mode: "section" },
@@ -317,12 +319,125 @@ const starterKits = {
   }
 };
 
+const projectSpecRegistry = [
+  {
+    id: "project-overview",
+    title: "Project Overview Spec",
+    description: "Adapter-derived project shape, package map, entrypoints, and context boundaries.",
+    keywords: ["project", "architecture", "context", "workspace", "package", "module", "understand", "overview"]
+  },
+  {
+    id: "coding-conventions",
+    title: "Coding Conventions Spec",
+    description: "Project coding style, structure, naming, validation, and change discipline.",
+    keywords: ["code", "coding", "style", "refactor", "implement", "fix", "test", "build"]
+  },
+  {
+    id: "api-conventions",
+    title: "API Conventions Spec",
+    description: "Interface, request, response, error, validation, and integration expectations.",
+    keywords: ["api", "interface", "request", "response", "endpoint", "contract", "fetch", "integration"]
+  },
+  {
+    id: "documentation-conventions",
+    title: "Documentation Conventions Spec",
+    description: "README, technical notes, usage docs, and change explanation expectations.",
+    keywords: ["doc", "docs", "documentation", "readme", "guide", "spec"]
+  },
+  {
+    id: "ui-conventions",
+    title: "UI Conventions Spec",
+    description: "Frontend UI structure, component reuse, state, accessibility, and visual consistency.",
+    keywords: ["ui", "ux", "frontend", "component", "page", "view", "layout", "style", "design"]
+  }
+];
+
+const projectSkillRegistry = [
+  {
+    id: "project-understanding",
+    description: "Use adapter output and project specs to quickly form a bounded understanding of a repository.",
+    instructions: [
+      "Start from `ctx discover` or the `workspace`, `packages`, `features`, and `dependencyGraph` fields in `ctx pack`.",
+      "Identify the smallest relevant package, feature, entrypoint, and dependency boundary before reading files broadly.",
+      "Use `.cortexa/specs/project-overview.md` to align with the project shape and open questions.",
+      "Report which adapter signals shaped the scope decision."
+    ]
+  },
+  {
+    id: "spec-alignment",
+    description: "Apply project-level coding, API, documentation, and UI specs during implementation or review.",
+    instructions: [
+      "Read the specs listed in the Context Packet before changing implementation details.",
+      "Prefer existing project conventions over generic framework habits when the two differ.",
+      "When behavior is underspecified, update or call out the relevant spec instead of burying the assumption in code.",
+      "Summarize which specs were applied and where project-specific judgment was needed."
+    ]
+  },
+  {
+    id: "api-contract-review",
+    description: "Review or implement interface contracts with request, response, validation, and failure-state consistency.",
+    instructions: [
+      "Locate the local request client, API modules, schema definitions, and error handling conventions.",
+      "Keep transformations and transport concerns aligned with the API conventions spec.",
+      "Check loading, empty, retry, authorization, validation, and backward compatibility paths.",
+      "Document contract assumptions when no source-of-truth schema exists."
+    ]
+  },
+  {
+    id: "ui-consistency-review",
+    description: "Review or implement UI work using project-specific component, layout, state, and accessibility conventions.",
+    instructions: [
+      "Locate nearby pages, views, components, tokens, and state patterns before introducing new UI shape.",
+      "Follow the UI conventions spec and local design-system primitives when present.",
+      "Check responsive layout, long content, focus behavior, disabled/loading/error states, and empty states.",
+      "Avoid introducing one-off styling when an established component or token exists."
+    ]
+  },
+  {
+    id: "documentation-quality",
+    description: "Create or revise project documentation with accurate scope, commands, assumptions, and maintenance notes.",
+    instructions: [
+      "Use adapter-discovered package names, commands, and entrypoints rather than guessed project structure.",
+      "Keep docs task-oriented and current with generated specs and setup output.",
+      "Call out prerequisites, validation commands, and limits of automation.",
+      "Prefer concise docs that help future AI and humans choose the right scope quickly."
+    ]
+  }
+];
+
+const projectAgentRegistry = [
+  {
+    id: "project-context-analyst",
+    title: "Project Context Analyst",
+    role: "Understand a repository through Cortexa adapters, package boundaries, feature boundaries, specs, and dependency signals.",
+    recommendedSkills: ["project-understanding", "spec-alignment"]
+  },
+  {
+    id: "project-implementation-agent",
+    title: "Project Implementation Agent",
+    role: "Deliver code changes inside the smallest relevant scope while following project coding, API, documentation, and UI conventions.",
+    recommendedSkills: ["project-understanding", "spec-alignment", "api-contract-review", "ui-consistency-review"]
+  },
+  {
+    id: "project-review-agent",
+    title: "Project Review Agent",
+    role: "Review changes for behavioral risk, convention drift, missing specs, and incomplete validation.",
+    recommendedSkills: ["project-understanding", "spec-alignment", "api-contract-review", "ui-consistency-review", "documentation-quality"]
+  },
+  {
+    id: "project-spec-maintainer",
+    title: "Project Spec Maintainer",
+    role: "Keep Cortexa project specs accurate as adapters discover more structure and teams clarify conventions.",
+    recommendedSkills: ["project-understanding", "spec-alignment", "documentation-quality"]
+  }
+];
+
 function readJson(path) {
   if (!existsSync(path)) {
     return null;
   }
 
-  return JSON.parse(readFileSync(path, "utf8"));
+  return JSON.parse(readFileSync(path, "utf8").replace(/^\uFEFF/, ""));
 }
 
 function writeJson(path, value) {
@@ -371,6 +486,7 @@ function discoverWorkspace(root) {
     features: analysis.features,
     packages: analysis.packages,
     dependencyGraph: analysis.dependencyGraph,
+    sourceGraph: analysis.sourceGraph,
     languages: analysis.languages,
     sourceSummary: analysis.sourceSummary,
     dependencies: Object.keys(packageJson?.dependencies || {}).sort(),
@@ -382,6 +498,8 @@ function discoverWorkspace(root) {
 function createContextPacket(root, task) {
   const workspace = discoverWorkspace(root);
   const scope = selectContextScope(workspace, task);
+  const specs = selectSpecsForTask(root, task);
+  const skills = [...new Set([...inferSkills(task), ...selectSkillsForTask(root, task, specs)])];
 
   return {
     task,
@@ -400,8 +518,8 @@ function createContextPacket(root, task) {
     dependencyGraph: workspace.dependencyGraph,
     dependencies: workspace.dependencies,
     devDependencies: workspace.devDependencies,
-    specs: [],
-    skills: inferSkills(task),
+    specs,
+    skills,
     generatedAt: new Date().toISOString()
   };
 }
@@ -422,6 +540,115 @@ function inferSkills(task) {
   }
 
   return [];
+}
+
+function selectSpecsForTask(root, task) {
+  const available = listProjectSpecs(root);
+  if (available.length === 0) {
+    return [];
+  }
+
+  const taskValue = task.toLowerCase();
+  const allSpecsRequested = includesAny(taskValue, ["spec", "规范", "convention", "standard"]);
+  if (allSpecsRequested) {
+    return available;
+  }
+
+  const selected = [];
+  for (const id of ["project-overview", "coding-conventions"]) {
+    const spec = available.find((candidate) => candidate.id === id);
+    if (spec) {
+      selected.push(spec);
+    }
+  }
+
+  for (const spec of available) {
+    if (selected.some((candidate) => candidate.id === spec.id)) {
+      continue;
+    }
+
+    const registry = projectSpecRegistry.find((candidate) => candidate.id === spec.id);
+    const keywords = registry?.keywords || [];
+    if (keywords.some((keyword) => taskMatchesKeyword(taskValue, keyword))) {
+      selected.push(spec);
+    }
+  }
+
+  return selected.slice(0, 5);
+}
+
+function selectSkillsForTask(root, task, specs) {
+  const available = new Set(listProjectSkills(root));
+  const selected = [];
+
+  function add(id) {
+    if (available.has(id)) {
+      selected.push(id);
+    }
+  }
+
+  add("project-understanding");
+  if (specs.length > 0) {
+    add("spec-alignment");
+  }
+
+  const taskValue = task.toLowerCase();
+  if (includesAny(taskValue, ["api", "interface", "接口", "contract", "request", "response"])) {
+    add("api-contract-review");
+  }
+
+  if (includesAny(taskValue, ["ui", "ux", "frontend", "component", "页面", "组件", "视图", "样式"])) {
+    add("ui-consistency-review");
+  }
+
+  if (includesAny(taskValue, ["doc", "docs", "readme", "文档", "说明"])) {
+    add("documentation-quality");
+  }
+
+  return [...new Set(selected)];
+}
+
+function listProjectSpecs(root) {
+  const specsDir = join(root, ".cortexa", "specs");
+  if (!existsSync(specsDir)) {
+    return [];
+  }
+
+  return projectSpecRegistry
+    .map((spec) => {
+      const path = join(specsDir, `${spec.id}.md`);
+      if (!existsSync(path)) {
+        return null;
+      }
+
+      return {
+        id: spec.id,
+        title: spec.title,
+        description: spec.description,
+        path: relative(root, path)
+      };
+    })
+    .filter(Boolean);
+}
+
+function listProjectSkills(root) {
+  const skillsDir = join(root, ".cortexa", "skills");
+  if (!existsSync(skillsDir)) {
+    return [];
+  }
+
+  return readdirSync(skillsDir, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && entry.name.endsWith(".json"))
+    .map((entry) => entry.name.slice(0, -".json".length));
+}
+
+function includesAny(value, keywords) {
+  return keywords.some((keyword) => taskMatchesKeyword(value, keyword));
+}
+
+function taskMatchesKeyword(value, keyword) {
+  const normalizedKeyword = keyword.toLowerCase();
+  return value.includes(normalizedKeyword);
 }
 
 function inferTemplate(discovery) {
@@ -626,8 +853,9 @@ Use Cortexa before broad repository exploration for engineering tasks:
 
 1. Run \`ctx discover\` when repository structure is unknown.
 2. Run \`ctx pack "<task>"\` to obtain the minimal structured context packet.
-3. If \`.cortexa/starter-kit.json\` exists, use its matching skill or agent profile for the task.
-4. Work from that packet and expand scope only when the task requires it.
+3. Read the specs listed in the packet from \`.cortexa/specs/\` before applying project conventions.
+4. If \`.cortexa/project-kit.json\` or \`.cortexa/starter-kit.json\` exists, use its matching skill or agent profile for the task.
+5. Work from that packet and expand scope only when the task requires it.
 
 When the CLI is installed as a local dependency, invoke it as \`npx --no-install ctx <command>\`.
 ${managedEnd}`;
@@ -829,6 +1057,246 @@ function setupStarterKit(root, template) {
   return results;
 }
 
+function setupProjectKit(root, template) {
+  const discovery = discoverWorkspace(root);
+  return writeProjectKit(root, discovery, template, { updateSpecs: false });
+}
+
+function updateProjectKit(root, templateValue = "auto") {
+  const discovery = discoverWorkspace(root);
+  const template = resolveTemplate(templateValue, discovery);
+  const results = writeProjectKit(root, discovery, template, { updateSpecs: true });
+
+  return { path: join(root, ".cortexa", "project-kit.json"), template, results };
+}
+
+function writeProjectKit(root, discovery, template, options = {}) {
+  const results = [];
+
+  for (const spec of projectSpecRegistry) {
+    const path = join(root, ".cortexa", "specs", `${spec.id}.md`);
+    results.push({
+      type: "spec",
+      id: spec.id,
+      path: relative(root, path),
+      status: writeProjectSpec(path, spec, discovery, template, { update: Boolean(options.updateSpecs) })
+    });
+  }
+
+  for (const skill of projectSkillRegistry) {
+    const path = join(root, ".cortexa", "skills", `${skill.id}.json`);
+    results.push({
+      type: "skill",
+      id: skill.id,
+      path: relative(root, path),
+      status: writeIfMissing(path, skillManifest(skill))
+    });
+  }
+
+  for (const agent of projectAgentRegistry) {
+    const path = join(root, ".cortexa", "agents", `${agent.id}.md`);
+    results.push({
+      type: "agent",
+      id: agent.id,
+      path: relative(root, path),
+      status: writeIfMissing(path, agentProfile(agent))
+    });
+  }
+
+  writeProjectKitRegistry(root, discovery, template);
+  return results;
+}
+
+function writeProjectKitRegistry(root, discovery, template) {
+  writeJson(join(root, ".cortexa", "project-kit.json"), {
+    version: 1,
+    template: template.id,
+    updatedAt: new Date().toISOString(),
+    generatedFrom: {
+      adapters: discovery.adapters,
+      framework: discovery.framework,
+      frameworks: discovery.frameworks,
+      workspace: discovery.workspace,
+      packageManager: discovery.packageManager,
+      packages: discovery.packages.map((pkg) => ({
+        name: pkg.name,
+        path: pkg.path,
+        framework: pkg.framework
+      })),
+      features: discovery.features.map((feature) => ({
+        name: feature.name,
+        path: feature.path,
+        kind: feature.kind
+      })),
+      entrypoints: discovery.semanticEntrypoints.map((entrypoint) => ({
+        path: entrypoint.path,
+        kind: entrypoint.kind
+      }))
+    },
+    specs: projectSpecRegistry.map((spec) => spec.id),
+    skills: projectSkillRegistry.map((skill) => skill.id),
+    agents: projectAgentRegistry.map((agent) => agent.id)
+  });
+}
+
+function writeProjectSpec(path, spec, discovery, template, options = {}) {
+  mkdirSync(dirname(path), { recursive: true });
+
+  if (!existsSync(path)) {
+    writeFileSync(path, specDocument(spec, discovery, template));
+    return "created";
+  }
+
+  if (!options.update) {
+    return "kept (existing)";
+  }
+
+  const current = readFileSync(path, "utf8");
+  const snapshot = adapterSnapshot(spec, discovery, template);
+  const start = current.indexOf(specSnapshotStart);
+  const end = current.indexOf(specSnapshotEnd);
+
+  if (start !== -1 && end !== -1 && end > start) {
+    const afterEnd = end + specSnapshotEnd.length;
+    writeFileSync(path, `${current.slice(0, start)}${snapshot}${current.slice(afterEnd)}`);
+    return "updated adapter snapshot";
+  }
+
+  writeFileSync(path, `${current.trimEnd()}\n\n${snapshot}\n`);
+  return "added adapter snapshot";
+}
+
+function specDocument(spec, discovery, template) {
+  return `# ${spec.title}
+
+${spec.description}
+
+This file is seeded by Cortexa from adapter-discovered project structure. Treat it as the editable source of truth for this repository; keep team-specific conventions here instead of repeating them in editor prompts.
+
+${adapterSnapshot(spec, discovery, template)}
+
+${specBody(spec.id, discovery)}
+`;
+}
+
+function adapterSnapshot(spec, discovery, template) {
+  const detected = [
+    `Project: ${discovery.name}`,
+    `Template: ${template.id}`,
+    `Workspace: ${discovery.workspace}`,
+    `Package manager: ${discovery.packageManager}`,
+    `Frameworks: ${formatInlineList(discovery.frameworks)}`,
+    `Adapters: ${formatInlineList(discovery.adapters)}`
+  ];
+  const packages = discovery.packages.slice(0, 12).map((pkg) => `${pkg.path} (${pkg.name}, ${pkg.framework})`);
+  const entrypoints = discovery.semanticEntrypoints.slice(0, 12).map((entrypoint) => `${entrypoint.path} [${entrypoint.kind}]`);
+  const features = discovery.features.slice(0, 12).map((feature) => `${feature.path} [${feature.kind}]`);
+
+  return `${specSnapshotStart}
+## Adapter Snapshot
+
+Last refreshed: ${new Date().toISOString()}
+
+### Adapter Signals
+
+${markdownList(detected)}
+
+### Packages
+
+${markdownList(packages, "No workspace packages detected.")}
+
+### Entrypoints
+
+${markdownList(entrypoints, "No semantic entrypoints detected.")}
+
+### Features
+
+${markdownList(features, "No feature directories detected yet.")}
+${specSnapshotEnd}`;
+}
+
+function specBody(id, discovery) {
+  if (id === "project-overview") {
+    return `## Context Boundaries
+
+- Start every broad task with \`ctx pack "<task>"\` and use the returned scope before opening unrelated files.
+- Prefer package and feature boundaries discovered by adapters over ad hoc repository-wide scanning.
+- When adapter output is incomplete, update this spec or add clearer project structure before relying on model guesses.
+
+## Open Questions
+
+- Which packages own public APIs, shared utilities, and user-facing applications?
+- Which directories should be considered generated, legacy, or low-trust context?
+- Which validation commands represent the minimum bar for common changes?
+`;
+  }
+
+  if (id === "coding-conventions") {
+    return `## Coding Rules
+
+- Follow local module structure, naming, imports, and export style from the nearest package or feature.
+- Keep changes scoped to the package, feature, or entrypoint selected by the Context Packet.
+- Reuse existing helpers and shared packages before adding new abstractions.
+- Validate changes with the package-level script when one exists; otherwise use the root quality gates.
+
+## Adapter-Derived Defaults
+
+- Primary languages: ${formatInlineList(discovery.languages)}
+- Source files scanned: ${discovery.sourceSummary.filesScanned}
+- Quality gates: ${formatInlineList(discovery.config?.qualityGates || [])}
+`;
+  }
+
+  if (id === "api-conventions") {
+    return `## Interface Rules
+
+- Locate existing request clients, API modules, schemas, and error handlers before adding new interface code.
+- Keep request construction, response normalization, retries, auth handling, and error display consistent with nearby code.
+- Treat missing schema or contract files as an explicit assumption and document it in the task summary.
+- Preserve backward compatibility for shared packages and public entrypoints.
+
+## Contract Checklist
+
+- Request shape, response shape, error shape, loading state, empty state, retry behavior, authorization, validation.
+`;
+  }
+
+  if (id === "documentation-conventions") {
+    return `## Documentation Rules
+
+- Use adapter-discovered package names, entrypoints, and commands instead of guessed paths.
+- Keep docs task-oriented: install, run, validate, extend, troubleshoot.
+- When a spec changes, update the matching \`.cortexa/specs/*.md\` file so future agents inherit the convention.
+- Separate durable project rules from one-off task notes.
+`;
+  }
+
+  return `## UI Rules
+
+- Locate nearby views, pages, components, layout primitives, design tokens, and state patterns before changing UI.
+- Reuse established component and styling conventions before introducing new UI surface area.
+- Cover loading, empty, error, disabled, long-content, narrow-viewport, and keyboard-access states when relevant.
+- For non-frontend projects, keep this spec as a placeholder until a UI package or adapter signal appears.
+
+## Detected UI Signals
+
+- Frontend frameworks: ${formatInlineList(discovery.frameworks.filter((framework) => ["vue", "nuxt", "react", "nextjs", "vite"].includes(framework)))}
+- UI feature candidates: ${formatInlineList(discovery.features.map((feature) => feature.path).slice(0, 8))}
+`;
+}
+
+function formatInlineList(values) {
+  return values?.length ? values.join(", ") : "none";
+}
+
+function markdownList(values, fallback = "None.") {
+  if (!values.length) {
+    return `- ${fallback}`;
+  }
+
+  return values.map((value) => `- ${value}`).join("\n");
+}
+
 function teardownEditors(root, options = {}) {
   const integrations = new Map(integrationRegistry.map((integration) => [integration.id, integration]));
   const configured = readJson(join(root, ".cortexa", "integrations.json"));
@@ -906,6 +1374,7 @@ const commands = {
   ctx setup --interactive
   ctx setup --list-editors
   ctx setup --list-templates
+  ctx update [--template auto|minimal|frontend|backend|monorepo]
   ctx teardown [--purge]
   ctx discover
   ctx pack <task>
@@ -916,6 +1385,7 @@ Commands:
   doctor    Validate workspace skeleton.
   init      Initialize workspace metadata.
   setup     Initialize metadata and add editor-native context rules. Use --interactive for guided setup.
+  update    Refresh Cortexa adapter snapshots and add missing project specs, skills, and agents.
   teardown  Remove Cortexa-managed editor rules without touching project code.
   discover  Inspect workspace shape.
   pack      Build a minimal context packet.
@@ -965,14 +1435,31 @@ Commands:
           };
       const workspace = initializeWorkspace(cwd, options.template);
       const results = setupEditors(cwd, options.editors);
+      const projectKit = setupProjectKit(cwd, workspace.template);
       const starters = setupStarterKit(cwd, workspace.template);
 
       console.log(`initialized ${relative(cwd, workspace.path)} (${workspace.template.id} template)`);
       for (const result of results) {
         console.log(`${result.editor}: ${result.status} ${result.path}`);
       }
+      for (const item of projectKit) {
+        console.log(`${item.type} ${item.id}: ${item.status} ${item.path}`);
+      }
       for (const starter of starters) {
         console.log(`${starter.type} ${starter.id}: ${starter.status} ${starter.path}`);
+      }
+    } catch (error) {
+      console.error(error.message);
+      process.exitCode = 1;
+    }
+  },
+  update() {
+    try {
+      const projectKit = updateProjectKit(cwd, parseTemplateSelection(args));
+
+      console.log(`updated ${relative(cwd, projectKit.path)} (${projectKit.template.id} template)`);
+      for (const item of projectKit.results) {
+        console.log(`${item.type} ${item.id}: ${item.status} ${item.path}`);
       }
     } catch (error) {
       console.error(error.message);

@@ -17,6 +17,7 @@ npm create cortexa@latest -- --yes
 npm create cortexa@latest -- --template frontend --editors codex,cursor
 npx --no-install ctx discover
 npx --no-install ctx pack "<task>"
+npx --no-install ctx update
 npx --no-install ctx teardown
 ```
 
@@ -27,8 +28,13 @@ npx --no-install ctx teardown
 Depending on your choices, Cortexa creates:
 
 - `.cortexa/workspace.json`
+- `.cortexa/project-kit.json`
+- project specs under `.cortexa/specs/` for project overview, coding, API/interface, documentation, and UI conventions
+- reusable project skills and agents under `.cortexa/skills/` and `.cortexa/agents/`
 - `AGENTS.md` or editor-native rule files
 - optional frontend starter skills and agents under `.cortexa/skills/` and `.cortexa/agents/`
+
+Run `ctx update` after adding packages, features, entrypoints, or dependencies. It refreshes Cortexa-managed adapter snapshots while preserving project-specific spec text.
 
 ## Packages
 
