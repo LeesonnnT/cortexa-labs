@@ -122,6 +122,18 @@ To remove all Cortexa metadata created by the CLI:
 npx --no-install ctx teardown --purge
 ```
 
+Then remove the local CLI dependency from the project:
+
+```bash
+npm uninstall --save-dev @cortexa-labs/cli
+```
+
+If the CLI was installed globally, uninstall it globally instead:
+
+```bash
+npm uninstall -g @cortexa-labs/cli
+```
+
 ## Use
 
 ```bash

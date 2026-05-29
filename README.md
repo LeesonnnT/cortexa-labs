@@ -23,6 +23,26 @@ npx --no-install ctx teardown
 
 `--yes` uses automatic template detection and the Codex integration. Pass `--template` and `--editors` when you already know the setup you want.
 
+## Uninstall
+
+To remove Cortexa from a project, first clean up generated editor integrations and metadata:
+
+```bash
+npx --no-install ctx teardown --purge
+```
+
+Then uninstall the local CLI dependency:
+
+```bash
+npm uninstall --save-dev @cortexa-labs/cli
+```
+
+If you installed the CLI globally, remove it with:
+
+```bash
+npm uninstall -g @cortexa-labs/cli
+```
+
 ## What Gets Created
 
 Depending on your choices, Cortexa creates:
