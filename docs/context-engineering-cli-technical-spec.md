@@ -140,6 +140,8 @@ CLI 是唯一入口，负责：
 - Workflow 执行
 - Runtime 管理
 
+CLI 入口文件必须保持轻量，只负责启动和分发，不允许承载胖入口逻辑。命令实现、Context 编译、Workspace 发现、Project Kit 写入、编辑器集成、交互式 setup 等职责必须拆入独立模块；入口文件通常应控制在 100 行以内。
+
 示例命令：
 
 ```bash

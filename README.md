@@ -74,7 +74,7 @@ Cortexa 会在项目中生成 `.cortexa/` 上下文资产系统：
 
 `ctx update` 会在项目结构变化后刷新 Cortexa 管理的 adapter 快照、repo graph 和 manifest，同时保留团队手写的 specs、skills、agents、ownership、domains、contracts 和 memory 内容。
 
-`ctx pack "<task>"` 会返回推荐的 `agents` 和 `multiAgent` 协作计划。复杂任务可以按 `.cortexa/multi-agent/collaboration.md` 中的协议拆分为 context analyst、implementation agent、review agent、spec maintainer 等角色，并通过 handoff schema 交接上下文。
+`ctx pack "<task>"` 会返回推荐的 `agents` 和 `multiAgent` 协作计划，并把任务编译成面向 AI 执行的上下文计划：`intent`、`taskResolver`、`readingOrder`、`requiredFiles`、`optionalFiles`、`riskBoundaries`、`impactedModules`、`executionPrompt` 和 `tokenBudget`。复杂任务可以按 `.cortexa/multi-agent/collaboration.md` 中的协议拆分为 context analyst、implementation agent、review agent、spec maintainer 等角色，并通过 handoff schema 交接上下文。
 
 ## 包
 

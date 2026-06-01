@@ -204,6 +204,17 @@ npx --no-install ctx doctor
 
 `pack` 会把 adapter 选中的 scope 与匹配的 specs、skills 组合成最小 Context Packet。例如 API 任务会包含项目概览、编码约定、API 约定，以及 setup 已创建的 API contract skill。
 
+新版 `pack` 也会把自然语言任务编译成可执行的任务上下文计划：
+
+- `intent`：识别任务类型，例如 `bugfix`、`feature`、`refactor`、`review` 或 `test`
+- `readingOrder`：推荐 AI 先后阅读的 specs、必读文件和可选扩展文件
+- `taskResolver`：展示任务解析策略、命中的 package / feature / entrypoint / semantic role 锚点和降噪词
+- `requiredFiles` / `optionalFiles`：最小必读上下文与按需扩展上下文
+- `riskBoundaries`：认证、请求拦截器、路由守卫、monorepo 边界等风险提示
+- `impactedModules`：根据 scope、feature、package 和语义文件推断可能影响的模块
+- `executionPrompt`：可直接交给 AI 编码工具的执行提示词
+- `tokenBudget`：按文件字符数粗估上下文成本，并给出单 agent 或拆分建议
+
 当前 adapter 覆盖：
 
 - JavaScript / TypeScript 源码结构
