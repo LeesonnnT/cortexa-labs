@@ -1,10 +1,11 @@
+import { existsSync, mkdirSync } from "node:fs";
 import { createInterface } from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
 import { join } from "node:path";
 import { discoverWorkspace } from "../workspace/discovery.js";
 import { writeJson } from "../core/fs.js";
-import { defaultEditorSelection, editorAliases, supportedEditors } from "../editor-integrations/index.js";
-import { supportedTemplates, templateAliases } from "../registries/index.js";
+import { editorAliases, supportedEditors } from "../editor-integrations/index.js";
+import { supportedTemplates, templateAliases, templateRegistry } from "../registries/index.js";
 
 export function inferTemplate(discovery) {
   if (discovery.workspace !== "single-package" || discovery.packages.length > 0) {

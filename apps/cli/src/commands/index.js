@@ -31,7 +31,7 @@ function createCommands(cwd, args) {
       ctx update [--template auto|minimal|frontend|backend|monorepo]
       ctx teardown [--purge]
       ctx discover
-      ctx pack <task>
+      ctx pack [--explain] <task>
     
     Commands:
       help      Show this help.
@@ -42,7 +42,7 @@ function createCommands(cwd, args) {
       update    Refresh Cortexa adapter snapshots and add missing project specs, skills, and agents.
       teardown  Remove Cortexa-managed editor rules without touching project code.
       discover  Inspect workspace shape.
-      pack      Build a minimal context packet.
+      pack      Build a minimal context packet. Use --explain to include quality diagnostics.
     `);
       },
       version() {
@@ -134,8 +134,9 @@ function createCommands(cwd, args) {
         console.log(JSON.stringify(discoverWorkspace(cwd), null, 2));
       },
       pack() {
-        const task = args.join(" ").trim() || "default-task";
-        console.log(JSON.stringify(createContextPacket(cwd, task), null, 2));
+        const explain = hasFlag(args, "--explain");
+        const task = args.filter((arg) => arg !== "--explain").join(" ").trim() || "default-task";
+        console.log(JSON.stringify(createContextPacket(cwd, task, { explain }), null, 2));
       }
   };
 

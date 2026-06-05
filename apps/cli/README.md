@@ -197,6 +197,7 @@ npm uninstall -g @cortexa-labs/cli
 ```bash
 npx --no-install ctx discover
 npx --no-install ctx pack billing-review
+npx --no-install ctx pack --explain "fix login token expired"
 npx --no-install ctx doctor
 ```
 
@@ -214,6 +215,17 @@ npx --no-install ctx doctor
 - `impactedModules`：根据 scope、feature、package 和语义文件推断可能影响的模块
 - `executionPrompt`：可直接交给 AI 编码工具的执行提示词
 - `tokenBudget`：按文件字符数粗估上下文成本，并给出单 agent 或拆分建议
+
+使用 `--explain` 时，`pack` 会额外返回 `contextQuality`，用于调试和评估上下文选择是否可靠：
+
+- `confidence`：本次上下文选择的置信度
+- `candidatePool`：候选文件数量、必读/可选/未使用分布，以及 entrypoint、path、content-preview 等证据来源统计
+- `selectedFiles`：必读文件的 score、sources 和选择理由
+- `missedSignals`：任务暗示了某类语义文件，但 selected files 没覆盖时给出的复核提示
+- `warnings`：弱 anchor、空 required context、上下文过大等风险
+- `nextActions`：如何收窄任务或按证据扩展上下文的建议
+
+这让 `ctx pack` 不只是返回一个结果，也能说明它为什么这么选、哪里不够稳，以及下一步该怎么补证据。
 
 当前 adapter 覆盖：
 

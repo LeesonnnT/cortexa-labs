@@ -1,5 +1,5 @@
-import { existsSync, mkdirSync, readFileSync, readdirSync } from "node:fs";
-import { dirname, join, relative } from "node:path";
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { join, relative } from "node:path";
 import { discoverWorkspace } from "../workspace/discovery.js";
 import { readJson, writeIfMissing, writeJson } from "../core/fs.js";
 import { resolveTemplate } from "../setup/options.js";

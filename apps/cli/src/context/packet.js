@@ -3,8 +3,9 @@ import { basename, join, relative } from "node:path";
 import { selectContextScope } from "../adapters/project/index.js";
 import { discoverWorkspace } from "../workspace/discovery.js";
 import { projectAgentRegistry, projectSkillRegistry, projectSpecRegistry, starterKits } from "../registries/index.js";
+import { explainContextQuality } from "./quality.js";
 
-export function createContextPacket(root, task) {
+export function createContextPacket(root, task, options = {}) {
   const workspace = discoverWorkspace(root);
   const scope = selectContextScope(workspace, task);
   const intent = classifyTaskIntent(task);
@@ -44,6 +45,7 @@ export function createContextPacket(root, task) {
     impactedModules: contextCompilation.impactedModules,
     executionPrompt: contextCompilation.executionPrompt,
     tokenBudget: contextCompilation.tokenBudget,
+    ...(options.explain ? { contextQuality: contextCompilation.contextQuality } : {}),
     generatedAt: new Date().toISOString()
   };
 }
@@ -93,7 +95,8 @@ function compileTaskContext(root, task, workspace, scope, specs, skills, agents,
   const requiredFiles = (requiredCandidates.length > 0 ? requiredCandidates : resolvedContext.candidates.slice(0, 4)).map((candidate) => ({
     path: candidate.path,
     reason: candidate.reason,
-    score: candidate.score
+    score: candidate.score,
+    sources: candidate.sources || []
   }));
   const required = new Set(requiredFiles.map((file) => file.path));
   const optionalFiles = resolvedContext.candidates
@@ -102,12 +105,28 @@ function compileTaskContext(root, task, workspace, scope, specs, skills, agents,
     .map((candidate) => ({
       path: candidate.path,
       reason: candidate.reason,
-      score: candidate.score
+      score: candidate.score,
+      sources: candidate.sources || []
     }));
   const readingOrder = createReadingOrder(specs, requiredFiles, optionalFiles);
   const riskBoundaries = inferRiskBoundaries(task, intent, workspace, requiredFiles);
   const impactedModules = inferImpactedModules(task, workspace, scope, requiredFiles, optionalFiles);
   const tokenBudget = estimateTokenBudget(root, requiredFiles, optionalFiles, specs, skills, agents, readingOrder);
+  const contextQuality = explainContextQuality({
+    task,
+    intent,
+    workspace,
+    scope,
+    resolvedContext,
+    requiredFiles,
+    optionalFiles,
+    specs,
+    skills,
+    agents,
+    riskBoundaries,
+    tokenBudget,
+    expectedRoles: inferSemanticRoles(task, expandTaskTerms(task))
+  });
 
   return {
     taskResolver: resolvedContext.resolver,
@@ -117,7 +136,8 @@ function compileTaskContext(root, task, workspace, scope, specs, skills, agents,
     riskBoundaries,
     impactedModules,
     executionPrompt: createExecutionPrompt(task, intent, readingOrder, requiredFiles, optionalFiles, riskBoundaries, multiAgent, tokenBudget),
-    tokenBudget
+    tokenBudget,
+    contextQuality
   };
 }
 
