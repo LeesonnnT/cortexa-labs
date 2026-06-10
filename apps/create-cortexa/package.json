@@ -1,6 +1,6 @@
 {
   "name": "create-cortexa",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "Interactive initializer for Cortexa workspace context.",
   "type": "module",
   "license": "MIT",

@@ -55,38 +55,59 @@ function classifyTaskIntent(task) {
   const intents = [
     {
       type: "bugfix",
-      keywords: ["fix", "bug", "debug", "error", "issue", "fail", "broken", "修复", "报错", "异常", "失败", "问题", "失效", "过期"]
+      keywords: ["fix", "bug", "debug", "error", "issue", "fail", "failing", "failed", "broken", "regression", "hotfix", "修复", "报错", "异常", "失败", "问题", "故障", "失效", "过期"]
     },
     {
       type: "feature",
-      keywords: ["add", "build", "implement", "create", "support", "feature", "新增", "添加", "实现", "支持", "开发", "功能"]
+      keywords: ["add", "build", "implement", "create", "support", "feature", "enable", "introduce", "新增", "添加", "实现", "支持", "开发", "功能", "接入"]
     },
     {
       type: "refactor",
-      keywords: ["refactor", "cleanup", "restructure", "rename", "optimize", "重构", "优化", "整理", "改造", "拆分"]
+      keywords: ["refactor", "cleanup", "restructure", "rename", "optimize", "simplify", "extract", "split", "重构", "优化", "整理", "改造", "拆分", "抽取"]
     },
     {
       type: "review",
-      keywords: ["review", "audit", "inspect", "check", "评审", "审查", "审核", "检查", "风险"]
+      keywords: ["review", "audit", "inspect", "check", "risk", "security", "评审", "审查", "审核", "检查", "风险", "巡检"]
     },
     {
       type: "test",
-      keywords: ["test", "spec", "coverage", "e2e", "unit", "测试", "单测", "覆盖率", "用例"]
+      keywords: ["test", "spec", "coverage", "e2e", "unit", "integration", "regression", "测试", "单测", "覆盖率", "用例", "回归"]
     }
   ];
   const matches = intents.map((intent) => ({
     type: intent.type,
-    signals: intent.keywords.filter((keyword) => taskMatchesKeyword(value, keyword))
+    signals: intent.keywords.filter((keyword) => taskMatchesKeyword(value, keyword)),
+    score: intent.keywords.reduce((score, keyword) => score + scoreIntentKeyword(value, keyword), 0)
   }));
-  const selected = matches.sort((a, b) => b.signals.length - a.signals.length)[0];
-  const type = selected?.signals.length > 0 ? selected.type : "general";
+  const selected = matches.sort((a, b) => b.score - a.score || b.signals.length - a.signals.length)[0];
+  const type = selected?.score > 0 ? selected.type : "general";
   const signals = selected?.signals || [];
+  const alternatives = matches
+    .filter((match) => match.type !== type && match.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .map((match) => ({ type: match.type, score: match.score, signals: match.signals }));
 
   return {
     type,
-    confidence: Number(Math.min(0.95, type === "general" ? 0.35 : 0.55 + signals.length * 0.12).toFixed(2)),
-    signals
+    confidence: Number(Math.min(0.95, type === "general" ? 0.35 : 0.5 + selected.score * 0.08 + signals.length * 0.06).toFixed(2)),
+    signals,
+    alternatives
   };
+}
+
+function scoreIntentKeyword(value, keyword) {
+  const normalizedKeyword = keyword.toLowerCase();
+
+  if (!value.includes(normalizedKeyword)) {
+    return 0;
+  }
+
+  if (/^[a-z0-9]+$/.test(normalizedKeyword)) {
+    const exact = new RegExp(`(^|[^a-z0-9])${escapeRegExp(normalizedKeyword)}([^a-z0-9]|$)`).test(value);
+    return exact ? 3 : 1;
+  }
+
+  return normalizedKeyword.length >= 2 ? 3 : 1;
 }
 
 function compileTaskContext(root, task, workspace, scope, specs, skills, agents, multiAgent, intent) {
@@ -96,7 +117,9 @@ function compileTaskContext(root, task, workspace, scope, specs, skills, agents,
     path: candidate.path,
     reason: candidate.reason,
     score: candidate.score,
-    sources: candidate.sources || []
+    sources: candidate.sources || [],
+    evidence: candidate.evidence || [],
+    explanation: candidate.explanation || candidate.reason
   }));
   const required = new Set(requiredFiles.map((file) => file.path));
   const optionalFiles = resolvedContext.candidates
@@ -106,7 +129,9 @@ function compileTaskContext(root, task, workspace, scope, specs, skills, agents,
       path: candidate.path,
       reason: candidate.reason,
       score: candidate.score,
-      sources: candidate.sources || []
+      sources: candidate.sources || [],
+      evidence: candidate.evidence || [],
+      explanation: candidate.explanation || candidate.reason
     }));
   const readingOrder = createReadingOrder(specs, requiredFiles, optionalFiles);
   const riskBoundaries = inferRiskBoundaries(task, intent, workspace, requiredFiles);
@@ -153,14 +178,16 @@ function resolveTaskFiles(task, workspace, scope) {
       return;
     }
 
+    const evidence = { source, score, reason };
     const previous = candidateScores.get(path);
     if (!previous) {
-      candidateScores.set(path, { path, score, reason, sources: [source] });
+      candidateScores.set(path, { path, score, reason, sources: [source], evidence: [evidence] });
       return;
     }
 
     previous.score += score;
     previous.sources = [...new Set([...previous.sources, source])];
+    previous.evidence.push(evidence);
     if (score > 0 && previous.reason.length < reason.length) {
       previous.reason = reason;
     }
@@ -189,7 +216,7 @@ function resolveTaskFiles(task, workspace, scope) {
   for (const file of sourceFiles) {
     const role = classifySourceFile(file);
     const roleScore = scoreSemanticRole(role, anchors.roles);
-    if (roleScore > 0 && isInsideResolverBoundary(file, anchors)) {
+    if (roleScore > 0 && isInsideSemanticBoundary(file, anchors, role)) {
       add(file, roleScore, role.reason, "semantic-role");
     }
   }
@@ -225,6 +252,11 @@ function resolveTaskFiles(task, workspace, scope) {
 
   const candidates = [...candidateScores.values()]
     .filter((candidate) => candidate.score >= 4)
+    .map((candidate) => ({
+      ...candidate,
+      evidence: candidate.evidence.sort((a, b) => b.score - a.score || a.source.localeCompare(b.source)),
+      explanation: summarizeCandidateEvidence(candidate)
+    }))
     .sort((a, b) => b.score - a.score || sourcePriority(a.path) - sourcePriority(b.path) || a.path.localeCompare(b.path));
 
   return {
@@ -370,6 +402,15 @@ function isInsideResolverBoundary(file, anchors) {
   return boundaries.length === 0 || boundaries.some((path) => file === path || file.startsWith(`${path}/`) || path.startsWith(`${file}#`));
 }
 
+function isInsideSemanticBoundary(file, anchors, role) {
+  if (isInsideResolverBoundary(file, anchors)) {
+    return true;
+  }
+
+  const crossCuttingRoles = new Set(["auth", "request", "routing", "state"]);
+  return role.roles.some((candidate) => anchors.roles.includes(candidate) && crossCuttingRoles.has(candidate));
+}
+
 function scorePathAgainstTerms(path, aliases, noisyTerms) {
   const normalized = path.toLowerCase();
   const tokens = new Set(normalized.split(/[^a-z0-9]+/).filter(Boolean));
@@ -408,6 +449,11 @@ function scoreContentPreview(root, path, terms) {
     score: Math.min(8, matched.length * 2),
     reason: matched.length > 0 ? `文件内容命中任务锚点 ${matched.slice(0, 3).join(", ")}` : ""
   };
+}
+
+function summarizeCandidateEvidence(candidate) {
+  const topEvidence = candidate.evidence.slice(0, 3).map((item) => `${item.source}+${item.score}`);
+  return `${candidate.reason}；总分 ${candidate.score}，证据 ${topEvidence.join(", ")}`;
 }
 
 function sourcePriority(path) {
@@ -900,4 +946,8 @@ function includesAny(value, keywords) {
 function taskMatchesKeyword(value, keyword) {
   const normalizedKeyword = keyword.toLowerCase();
   return value.includes(normalizedKeyword);
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

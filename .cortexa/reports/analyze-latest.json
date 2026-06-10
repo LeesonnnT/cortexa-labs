@@ -1,0 +1,353 @@
+{
+  "version": 1,
+  "type": "analyze",
+  "generatedAt": "2026-06-10T01:27:20.266Z",
+  "project": {
+    "name": "cortexa-labs",
+    "packageManager": "pnpm",
+    "workspace": "pnpm-monorepo",
+    "framework": "react",
+    "frameworks": [
+      "react",
+      "typescript",
+      "javascript"
+    ],
+    "languages": [
+      "typescript",
+      "javascript"
+    ],
+    "adapters": [
+      "javascript-typescript",
+      "react-next",
+      "pnpm-monorepo"
+    ]
+  },
+  "sourceSummary": {
+    "filesScanned": 25,
+    "extensions": {
+      ".js": 23,
+      ".ts": 1,
+      ".tsx": 1
+    }
+  },
+  "structure": {
+    "directories": [
+      "adapters",
+      "apps",
+      "docs",
+      "packages",
+      "skills",
+      "tmp",
+      "workflows",
+      "workspace"
+    ],
+    "workspaces": [
+      "apps/*",
+      "packages/*",
+      "workspace/*",
+      "adapters/*",
+      "skills/*",
+      "workflows/*"
+    ],
+    "packageCount": 10,
+    "featureCount": 0,
+    "entrypointCount": 2,
+    "sourceFileCount": 25,
+    "sourceImportCount": 30
+  },
+  "packages": [
+    {
+      "name": "@ctx/adapter-base",
+      "path": "adapters/base",
+      "framework": "javascript",
+      "frameworks": [
+        "javascript"
+      ],
+      "entrypoints": [
+        "adapters/base/src/index.js"
+      ],
+      "dependencies": [],
+      "devDependencies": []
+    },
+    {
+      "name": "@cortexa-labs/cli",
+      "path": "apps/cli",
+      "framework": "javascript",
+      "frameworks": [
+        "javascript"
+      ],
+      "entrypoints": [
+        "apps/cli/src/index.js",
+        "apps/cli/package.json#scripts.start",
+        "apps/cli/package.json#scripts.test"
+      ],
+      "dependencies": [],
+      "devDependencies": []
+    },
+    {
+      "name": "create-cortexa",
+      "path": "apps/create-cortexa",
+      "framework": "javascript",
+      "frameworks": [
+        "javascript"
+      ],
+      "entrypoints": [
+        "apps/create-cortexa/src/index.js",
+        "apps/create-cortexa/package.json#scripts.test"
+      ],
+      "dependencies": [],
+      "devDependencies": []
+    },
+    {
+      "name": "@ctx/shared",
+      "path": "packages/shared",
+      "framework": "javascript",
+      "frameworks": [
+        "javascript"
+      ],
+      "entrypoints": [
+        "packages/shared/src/index.js"
+      ],
+      "dependencies": [],
+      "devDependencies": []
+    },
+    {
+      "name": "@ctx/skill-review",
+      "path": "skills/review",
+      "framework": "unknown",
+      "frameworks": [],
+      "entrypoints": [],
+      "dependencies": [],
+      "devDependencies": []
+    },
+    {
+      "name": "@ctx/workflow-review",
+      "path": "workflows/review",
+      "framework": "unknown",
+      "frameworks": [],
+      "entrypoints": [],
+      "dependencies": [],
+      "devDependencies": []
+    },
+    {
+      "name": "@ctx/graph",
+      "path": "workspace/graph",
+      "framework": "javascript",
+      "frameworks": [
+        "javascript"
+      ],
+      "entrypoints": [
+        "workspace/graph/src/index.js"
+      ],
+      "dependencies": [],
+      "devDependencies": []
+    },
+    {
+      "name": "@ctx/ownership",
+      "path": "workspace/ownership",
+      "framework": "javascript",
+      "frameworks": [
+        "javascript"
+      ],
+      "entrypoints": [
+        "workspace/ownership/src/index.js"
+      ],
+      "dependencies": [],
+      "devDependencies": []
+    },
+    {
+      "name": "@ctx/resolver",
+      "path": "workspace/resolver",
+      "framework": "javascript",
+      "frameworks": [
+        "javascript"
+      ],
+      "entrypoints": [
+        "workspace/resolver/src/index.js"
+      ],
+      "dependencies": [],
+      "devDependencies": []
+    },
+    {
+      "name": "@ctx/runtime",
+      "path": "workspace/runtime",
+      "framework": "javascript",
+      "frameworks": [
+        "javascript"
+      ],
+      "entrypoints": [
+        "workspace/runtime/src/index.js"
+      ],
+      "dependencies": [],
+      "devDependencies": []
+    }
+  ],
+  "entrypoints": [
+    {
+      "path": "package.json#scripts.dev",
+      "kind": "script",
+      "runtime": "node",
+      "command": "node apps/cli/src/index.js"
+    },
+    {
+      "path": "package.json#scripts.start",
+      "kind": "script",
+      "runtime": "node",
+      "command": "node apps/cli/src/index.js"
+    }
+  ],
+  "features": [],
+  "dependencyGraph": {
+    "nodes": [
+      {
+        "id": "cortexa-labs",
+        "type": "workspace-root",
+        "path": "."
+      },
+      {
+        "id": "@ctx/adapter-base",
+        "type": "workspace-package",
+        "path": "adapters/base",
+        "framework": "javascript"
+      },
+      {
+        "id": "@cortexa-labs/cli",
+        "type": "workspace-package",
+        "path": "apps/cli",
+        "framework": "javascript"
+      },
+      {
+        "id": "create-cortexa",
+        "type": "workspace-package",
+        "path": "apps/create-cortexa",
+        "framework": "javascript"
+      },
+      {
+        "id": "@ctx/shared",
+        "type": "workspace-package",
+        "path": "packages/shared",
+        "framework": "javascript"
+      },
+      {
+        "id": "@ctx/skill-review",
+        "type": "workspace-package",
+        "path": "skills/review",
+        "framework": "unknown"
+      },
+      {
+        "id": "@ctx/workflow-review",
+        "type": "workspace-package",
+        "path": "workflows/review",
+        "framework": "unknown"
+      },
+      {
+        "id": "@ctx/graph",
+        "type": "workspace-package",
+        "path": "workspace/graph",
+        "framework": "javascript"
+      },
+      {
+        "id": "@ctx/ownership",
+        "type": "workspace-package",
+        "path": "workspace/ownership",
+        "framework": "javascript"
+      },
+      {
+        "id": "@ctx/resolver",
+        "type": "workspace-package",
+        "path": "workspace/resolver",
+        "framework": "javascript"
+      },
+      {
+        "id": "@ctx/runtime",
+        "type": "workspace-package",
+        "path": "workspace/runtime",
+        "framework": "javascript"
+      }
+    ],
+    "edges": [
+      {
+        "from": "cortexa-labs",
+        "to": "@ctx/adapter-base",
+        "type": "contains"
+      },
+      {
+        "from": "cortexa-labs",
+        "to": "@cortexa-labs/cli",
+        "type": "contains"
+      },
+      {
+        "from": "cortexa-labs",
+        "to": "create-cortexa",
+        "type": "contains"
+      },
+      {
+        "from": "cortexa-labs",
+        "to": "@ctx/shared",
+        "type": "contains"
+      },
+      {
+        "from": "cortexa-labs",
+        "to": "@ctx/skill-review",
+        "type": "contains"
+      },
+      {
+        "from": "cortexa-labs",
+        "to": "@ctx/workflow-review",
+        "type": "contains"
+      },
+      {
+        "from": "cortexa-labs",
+        "to": "@ctx/graph",
+        "type": "contains"
+      },
+      {
+        "from": "cortexa-labs",
+        "to": "@ctx/ownership",
+        "type": "contains"
+      },
+      {
+        "from": "cortexa-labs",
+        "to": "@ctx/resolver",
+        "type": "contains"
+      },
+      {
+        "from": "cortexa-labs",
+        "to": "@ctx/runtime",
+        "type": "contains"
+      }
+    ]
+  },
+  "riskBoundaries": [
+    {
+      "area": "workspace-boundary",
+      "severity": "medium",
+      "reason": "项目包含多个 package，跨包修改可能影响多个运行入口。",
+      "evidence": [
+        "adapters/base",
+        "apps/cli",
+        "apps/create-cortexa",
+        "packages/shared",
+        "skills/review",
+        "workflows/review",
+        "workspace/graph",
+        "workspace/ownership"
+      ],
+      "guardrail": "先确认 package 依赖方向，再把任务收窄到单个 app/package 或明确的调用链。"
+    },
+    {
+      "area": "script-entrypoints",
+      "severity": "low",
+      "reason": "package scripts 是常见验证入口，但不同 package 的脚本可能语义不同。",
+      "evidence": [
+        "package.json#scripts.dev",
+        "package.json#scripts.start"
+      ],
+      "guardrail": "执行变更前优先查看目标 package 的 scripts，并选择最近的验证命令。"
+    }
+  ],
+  "recommendations": [
+    "运行 ctx setup 初始化 .cortexa/workspace.json 和项目上下文资产。",
+    "为关键 package 补充 ownership-map，明确跨包任务的边界和负责人。"
+  ]
+}

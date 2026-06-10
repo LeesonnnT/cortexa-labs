@@ -3,6 +3,7 @@ import { join, relative } from "node:path";
 import { createContextPacket } from "../context/packet.js";
 import { listEditorIntegrations, setupEditors, teardownEditors } from "../editors/rules.js";
 import { setupProjectKit, setupStarterKit, updateProjectKit } from "../project-kit/index.js";
+import { analyzeWorkspace } from "../reports/analyze.js";
 import { discoverWorkspace } from "../workspace/discovery.js";
 import { hasFlag, initializeWorkspace, parseEditorSelection, parseTemplateSelection, promptSetupOptions } from "../setup/options.js";
 import { templateRegistry } from "../registries/index.js";
@@ -31,6 +32,7 @@ function createCommands(cwd, args) {
       ctx update [--template auto|minimal|frontend|backend|monorepo]
       ctx teardown [--purge]
       ctx discover
+      ctx analyze
       ctx pack [--explain] <task>
     
     Commands:
@@ -42,6 +44,7 @@ function createCommands(cwd, args) {
       update    Refresh Cortexa adapter snapshots and add missing project specs, skills, and agents.
       teardown  Remove Cortexa-managed editor rules without touching project code.
       discover  Inspect workspace shape.
+      analyze   Generate project structure and risk reports under .cortexa/reports.
       pack      Build a minimal context packet. Use --explain to include quality diagnostics.
     `);
       },
@@ -132,6 +135,20 @@ function createCommands(cwd, args) {
       },
       discover() {
         console.log(JSON.stringify(discoverWorkspace(cwd), null, 2));
+      },
+      analyze() {
+        try {
+          const result = analyzeWorkspace(cwd);
+          console.log(`analyzed ${result.report.project.name}`);
+          console.log(`json: ${result.paths.json}`);
+          console.log(`markdown: ${result.paths.markdown}`);
+          console.log(
+            `summary: ${result.report.structure.sourceFileCount} files, ${result.report.structure.packageCount} packages, ${result.report.structure.featureCount} features, ${result.report.riskBoundaries.length} risks`
+          );
+        } catch (error) {
+          console.error(error.message);
+          process.exitCode = 1;
+        }
       },
       pack() {
         const explain = hasFlag(args, "--explain");

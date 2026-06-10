@@ -19,9 +19,20 @@ export function explainContextQuality(context) {
   const warnings = inferContextWarnings(resolvedContext, requiredFiles, optionalFiles, tokenBudget, missedSignals);
   const confidence = estimateContextConfidence(intent, resolvedContext, requiredFiles, missedSignals, warnings, tokenBudget);
   const candidatePool = summarizeCandidatePool(resolvedContext.candidates, requiredFiles, optionalFiles);
+  const metrics = summarizeQualityMetrics({
+    confidence,
+    intent,
+    resolvedContext,
+    requiredFiles,
+    optionalFiles,
+    missedSignals,
+    warnings,
+    tokenBudget
+  });
 
   return {
     confidence,
+    metrics,
     summary: summarizeContextQuality(confidence, requiredFiles, missedSignals, warnings),
     resolver: {
       strategy: resolvedContext.resolver.strategy,
@@ -38,7 +49,17 @@ export function explainContextQuality(context) {
       path: file.path,
       score: file.score,
       sources: file.sources,
-      reason: file.reason
+      reason: file.reason,
+      evidence: file.evidence || [],
+      explanation: file.explanation || file.reason
+    })),
+    optionalFileEvidence: optionalFiles.slice(0, 5).map((file) => ({
+      path: file.path,
+      score: file.score,
+      sources: file.sources,
+      reason: file.reason,
+      evidence: file.evidence || [],
+      explanation: file.explanation || file.reason
     })),
     selectedContext: {
       task,
@@ -52,6 +73,26 @@ export function explainContextQuality(context) {
     missedSignals,
     warnings,
     nextActions: recommendContextActions(confidence, resolvedContext, requiredFiles, optionalFiles, missedSignals, tokenBudget)
+  };
+}
+
+function summarizeQualityMetrics({ confidence, intent, resolvedContext, requiredFiles, optionalFiles, missedSignals, warnings, tokenBudget }) {
+  const multiEvidenceFiles = [...requiredFiles, ...optionalFiles].filter((file) => (file.sources || []).length > 1).length;
+  const anchorCounts = resolvedContext.resolver.anchors;
+
+  return {
+    confidence,
+    intentConfidence: intent.confidence,
+    strongAnchors: anchorCounts.packages.length + anchorCounts.features.length + anchorCounts.entrypoints.length,
+    roleAnchors: anchorCounts.roles.length,
+    candidateCount: resolvedContext.candidates.length,
+    requiredCount: requiredFiles.length,
+    optionalCount: optionalFiles.length,
+    multiEvidenceFiles,
+    missedSignalCount: missedSignals.length,
+    warningCount: warnings.length,
+    tokenLevel: tokenBudget.level,
+    stable: confidence >= 0.75 && requiredFiles.length > 0 && missedSignals.length === 0 && !["large", "too-large"].includes(tokenBudget.level)
   };
 }
 
