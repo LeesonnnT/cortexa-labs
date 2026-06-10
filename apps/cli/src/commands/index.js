@@ -4,6 +4,7 @@ import { createContextPacket } from "../context/packet.js";
 import { listEditorIntegrations, setupEditors, teardownEditors } from "../editors/rules.js";
 import { setupProjectKit, setupStarterKit, updateProjectKit } from "../project-kit/index.js";
 import { analyzeWorkspace } from "../reports/analyze.js";
+import { auditWorkspace } from "../reports/audit.js";
 import { discoverWorkspace } from "../workspace/discovery.js";
 import { hasFlag, initializeWorkspace, parseEditorSelection, parseTemplateSelection, promptSetupOptions } from "../setup/options.js";
 import { templateRegistry } from "../registries/index.js";
@@ -33,6 +34,7 @@ function createCommands(cwd, args) {
       ctx teardown [--purge]
       ctx discover
       ctx analyze
+      ctx audit
       ctx pack [--explain] <task>
     
     Commands:
@@ -45,6 +47,7 @@ function createCommands(cwd, args) {
       teardown  Remove Cortexa-managed editor rules without touching project code.
       discover  Inspect workspace shape.
       analyze   Generate project structure and risk reports under .cortexa/reports.
+      audit     Check Cortexa context assets and snapshot freshness.
       pack      Build a minimal context packet. Use --explain to include quality diagnostics.
     `);
       },
@@ -145,6 +148,22 @@ function createCommands(cwd, args) {
           console.log(
             `summary: ${result.report.structure.sourceFileCount} files, ${result.report.structure.packageCount} packages, ${result.report.structure.featureCount} features, ${result.report.riskBoundaries.length} risks`
           );
+        } catch (error) {
+          console.error(error.message);
+          process.exitCode = 1;
+        }
+      },
+      audit() {
+        try {
+          const result = auditWorkspace(cwd);
+          console.log(`audited ${result.report.project.name}`);
+          console.log(`status: ${result.report.status}`);
+          console.log(`json: ${result.paths.json}`);
+          console.log(`markdown: ${result.paths.markdown}`);
+          console.log(`summary: ${result.report.summary.pass} pass, ${result.report.summary.warn} warn, ${result.report.summary.fail} fail`);
+          if (result.report.status === "fail") {
+            process.exitCode = 1;
+          }
         } catch (error) {
           console.error(error.message);
           process.exitCode = 1;

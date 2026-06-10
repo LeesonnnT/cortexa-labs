@@ -16,6 +16,8 @@ npm create cortexa@latest
 npm create cortexa@latest -- --yes
 npm create cortexa@latest -- --template frontend --editors codex,cursor
 npx --no-install ctx discover
+npx --no-install ctx analyze
+npx --no-install ctx audit
 npx --no-install ctx pack "<task>"
 npx --no-install ctx update
 npx --no-install ctx teardown
@@ -73,6 +75,10 @@ Cortexa 会在项目中生成 `.cortexa/` 上下文资产系统：
 `context-manifest.json` 会记录哪些上下文层已启用、检测到了哪些能力信号，以及每类资产由人工维护、机器刷新还是混合管理。
 
 `ctx update` 会在项目结构变化后刷新 Cortexa 管理的 adapter 快照、repo graph 和 manifest，同时保留团队手写的 specs、skills、agents、ownership、domains、contracts 和 memory 内容。
+
+`ctx analyze` 会在 `.cortexa/reports/` 下生成当前项目结构、入口、feature、package 和风险边界报告，适合在接入后或重大结构调整后阅读。
+
+`ctx audit` 会检查 `.cortexa` 核心资产、manifest 生命周期配置、adapter discovery 和 repo graph 快照是否齐全或过期，适合在发布、升级 CLI 或执行 `ctx pack` 前确认上下文资产健康。
 
 `ctx pack "<task>"` 会返回推荐的 `agents` 和 `multiAgent` 协作计划，并把任务编译成面向 AI 执行的上下文计划：`intent`、`taskResolver`、`readingOrder`、`requiredFiles`、`optionalFiles`、`riskBoundaries`、`impactedModules`、`executionPrompt` 和 `tokenBudget`。复杂任务可以按 `.cortexa/multi-agent/collaboration.md` 中的协议拆分为 context analyst、implementation agent、review agent、spec maintainer 等角色，并通过 handoff schema 交接上下文。
 

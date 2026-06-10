@@ -196,12 +196,18 @@ npm uninstall -g @cortexa-labs/cli
 
 ```bash
 npx --no-install ctx discover
+npx --no-install ctx analyze
+npx --no-install ctx audit
 npx --no-install ctx pack billing-review
 npx --no-install ctx pack --explain "fix login token expired"
 npx --no-install ctx doctor
 ```
 
 `discover` 会运行内置 project adapters，并输出 `adapters`、`frameworks`、`features`、`packages`、`semanticEntrypoints`、`dependencyGraph` 等语义字段。
+
+`analyze` 会把当前项目结构、入口、feature、package、依赖图和风险边界写入 `.cortexa/reports/analyze-latest.{json,md}`，方便人类先读项目全貌。
+
+`audit` 会检查 `.cortexa` 核心资产、manifest 生命周期配置、adapter discovery 和 repo graph 快照是否齐全或过期，并写入 `.cortexa/reports/audit-latest.{json,md}`。当项目结构变化、升级 CLI 或准备依赖 `ctx pack` 做复杂任务时，优先运行它。
 
 `pack` 会把 adapter 选中的 scope 与匹配的 specs、skills 组合成最小 Context Packet。例如 API 任务会包含项目概览、编码约定、API 约定，以及 setup 已创建的 API contract skill。
 

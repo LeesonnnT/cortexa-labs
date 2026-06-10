@@ -1,0 +1,188 @@
+{
+  "version": 1,
+  "type": "audit",
+  "generatedAt": "2026-06-10T03:17:54.779Z",
+  "project": {
+    "name": "cortexa-labs",
+    "workspace": "pnpm-monorepo",
+    "packageManager": "pnpm",
+    "frameworks": [
+      "react",
+      "typescript",
+      "javascript"
+    ],
+    "adapters": [
+      "javascript-typescript",
+      "react-next",
+      "pnpm-monorepo"
+    ]
+  },
+  "status": "fail",
+  "summary": {
+    "status": "fail",
+    "total": 17,
+    "pass": 1,
+    "warn": 4,
+    "fail": 12
+  },
+  "checks": [
+    {
+      "id": "core.workspace",
+      "status": "fail",
+      "severity": "fail",
+      "title": ".cortexa/workspace.json exists",
+      "message": ".cortexa/workspace.json is missing. workspace config is required by ctx pack and editor integrations.",
+      "path": ".cortexa/workspace.json",
+      "suggestion": "Run ctx setup to initialize workspace metadata."
+    },
+    {
+      "id": "core.manifest",
+      "status": "fail",
+      "severity": "fail",
+      "title": ".cortexa/context-manifest.json exists",
+      "message": ".cortexa/context-manifest.json is missing. manifest records asset ownership and refresh lifecycle.",
+      "path": ".cortexa/context-manifest.json",
+      "suggestion": "Run ctx setup or ctx update to create context-manifest.json."
+    },
+    {
+      "id": "core.project-kit",
+      "status": "warn",
+      "severity": "warn",
+      "title": ".cortexa/project-kit.json exists",
+      "message": ".cortexa/project-kit.json is missing. project kit summarizes generated specs, skills, agents, and layers.",
+      "path": ".cortexa/project-kit.json",
+      "suggestion": "Run ctx update to refresh project-kit.json."
+    },
+    {
+      "id": "core.ownership",
+      "status": "warn",
+      "severity": "warn",
+      "title": ".cortexa/ownership/ownership-map.json exists",
+      "message": ".cortexa/ownership/ownership-map.json is missing. ownership map helps bound multi-package tasks.",
+      "path": ".cortexa/ownership/ownership-map.json",
+      "suggestion": "Run ctx setup, then fill ownership-map for important packages."
+    },
+    {
+      "id": "snapshot.discovery",
+      "status": "warn",
+      "severity": "warn",
+      "title": ".cortexa/adapters/discovery.json exists",
+      "message": ".cortexa/adapters/discovery.json is missing. adapter discovery snapshot should track current project shape.",
+      "path": ".cortexa/adapters/discovery.json",
+      "suggestion": "Run ctx update to refresh adapter discovery."
+    },
+    {
+      "id": "snapshot.repo-graph",
+      "status": "warn",
+      "severity": "warn",
+      "title": ".cortexa/graphs/repo-graph.json exists",
+      "message": ".cortexa/graphs/repo-graph.json is missing. repo graph snapshot should track packages, entrypoints, features, and source imports.",
+      "path": ".cortexa/graphs/repo-graph.json",
+      "suggestion": "Run ctx update to refresh repo graph."
+    },
+    {
+      "id": "reports.analyze",
+      "status": "pass",
+      "severity": "info",
+      "title": ".cortexa/reports/analyze-latest.json exists",
+      "message": ".cortexa/reports/analyze-latest.json exists.",
+      "path": ".cortexa/reports/analyze-latest.json",
+      "suggestion": null
+    },
+    {
+      "id": "asset.layer.agents",
+      "status": "fail",
+      "severity": "fail",
+      "title": ".cortexa/agents exists",
+      "message": ".cortexa/agents is missing. agents layer directory should exist when enabled.",
+      "path": ".cortexa/agents",
+      "suggestion": "Run ctx setup or ctx update to create .cortexa/agents."
+    },
+    {
+      "id": "asset.layer.skills",
+      "status": "fail",
+      "severity": "fail",
+      "title": ".cortexa/skills exists",
+      "message": ".cortexa/skills is missing. skills layer directory should exist when enabled.",
+      "path": ".cortexa/skills",
+      "suggestion": "Run ctx setup or ctx update to create .cortexa/skills."
+    },
+    {
+      "id": "asset.layer.specs",
+      "status": "fail",
+      "severity": "fail",
+      "title": ".cortexa/specs exists",
+      "message": ".cortexa/specs is missing. specs layer directory should exist when enabled.",
+      "path": ".cortexa/specs",
+      "suggestion": "Run ctx setup or ctx update to create .cortexa/specs."
+    },
+    {
+      "id": "asset.layer.contexts",
+      "status": "fail",
+      "severity": "fail",
+      "title": ".cortexa/contexts exists",
+      "message": ".cortexa/contexts is missing. contexts layer directory should exist when enabled.",
+      "path": ".cortexa/contexts",
+      "suggestion": "Run ctx setup or ctx update to create .cortexa/contexts."
+    },
+    {
+      "id": "asset.layer.adapters",
+      "status": "fail",
+      "severity": "fail",
+      "title": ".cortexa/adapters exists",
+      "message": ".cortexa/adapters is missing. adapters layer directory should exist when enabled.",
+      "path": ".cortexa/adapters",
+      "suggestion": "Run ctx setup or ctx update to create .cortexa/adapters."
+    },
+    {
+      "id": "asset.layer.graphs",
+      "status": "fail",
+      "severity": "fail",
+      "title": ".cortexa/graphs exists",
+      "message": ".cortexa/graphs is missing. graphs layer directory should exist when enabled.",
+      "path": ".cortexa/graphs",
+      "suggestion": "Run ctx setup or ctx update to create .cortexa/graphs."
+    },
+    {
+      "id": "asset.layer.runtime",
+      "status": "fail",
+      "severity": "fail",
+      "title": ".cortexa/runtime exists",
+      "message": ".cortexa/runtime is missing. runtime layer directory should exist when enabled.",
+      "path": ".cortexa/runtime",
+      "suggestion": "Run ctx setup or ctx update to create .cortexa/runtime."
+    },
+    {
+      "id": "asset.layer.ownership",
+      "status": "fail",
+      "severity": "fail",
+      "title": ".cortexa/ownership exists",
+      "message": ".cortexa/ownership is missing. ownership layer directory should exist when enabled.",
+      "path": ".cortexa/ownership",
+      "suggestion": "Run ctx setup or ctx update to create .cortexa/ownership."
+    },
+    {
+      "id": "asset.layer.multi-agent",
+      "status": "fail",
+      "severity": "fail",
+      "title": ".cortexa/multi-agent exists",
+      "message": ".cortexa/multi-agent is missing. multi-agent layer directory should exist when enabled.",
+      "path": ".cortexa/multi-agent",
+      "suggestion": "Run ctx setup or ctx update to create .cortexa/multi-agent."
+    },
+    {
+      "id": "asset.layer.workflows",
+      "status": "fail",
+      "severity": "fail",
+      "title": ".cortexa/workflows exists",
+      "message": ".cortexa/workflows is missing. workflows layer directory should exist when enabled.",
+      "path": ".cortexa/workflows",
+      "suggestion": "Run ctx setup or ctx update to create .cortexa/workflows."
+    }
+  ],
+  "recommendations": [
+    "Run ctx setup to initialize the required Cortexa workspace assets.",
+    "Run ctx update after project structure changes to refresh manifest, adapter discovery, and repo graph snapshots.",
+    "Fill .cortexa/ownership/ownership-map.json for packages or features that often change."
+  ]
+}
