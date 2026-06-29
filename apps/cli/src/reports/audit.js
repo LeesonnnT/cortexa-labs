@@ -71,6 +71,28 @@ function checkManifest(root, manifest) {
   const enabledLayers = new Set(manifest.enabledLayers || []);
   const generatedAssets = manifest.generatedAssets || {};
 
+  checks.push({
+    id: "manifest.schema.version",
+    status: manifest.version === 1 ? "pass" : "warn",
+    severity: manifest.version === 1 ? "info" : "warn",
+    title: "manifest schema version",
+    message: manifest.version === 1 ? "context-manifest.json is using schema version 1." : `context-manifest.json schema version is ${manifest.version ?? "missing"}.`,
+    path: ".cortexa/context-manifest.json",
+    suggestion: manifest.version === 1 ? null : "Run ctx update to refresh context-manifest.json."
+  });
+
+  checks.push({
+    id: "manifest.lifecycle",
+    status: hasLifecycleKeys(manifest.lifecycle) ? "pass" : "warn",
+    severity: hasLifecycleKeys(manifest.lifecycle) ? "info" : "warn",
+    title: "manifest lifecycle metadata",
+    message: hasLifecycleKeys(manifest.lifecycle)
+      ? "context-manifest.json includes human, machine, and hybrid lifecycle guidance."
+      : "context-manifest.json is missing lifecycle guidance for human, machine, or hybrid assets.",
+    path: ".cortexa/context-manifest.json",
+    suggestion: hasLifecycleKeys(manifest.lifecycle) ? null : "Run ctx update to refresh context-manifest.json."
+  });
+
   for (const layer of ["agents", "skills", "specs", "contexts", "adapters", "graphs", "runtime", "ownership", "multi-agent", "workflows"]) {
     const enabled = enabledLayers.has(layer);
     checks.push({
@@ -81,6 +103,21 @@ function checkManifest(root, manifest) {
       message: enabled ? `${layer} is enabled in context-manifest.json.` : `${layer} is missing from context-manifest.json enabledLayers.`,
       path: ".cortexa/context-manifest.json",
       suggestion: enabled ? null : "Run ctx update to refresh context-manifest.json."
+    });
+  }
+
+  for (const layer of enabledLayers) {
+    const asset = generatedAssets[layer];
+    checks.push({
+      id: `manifest.asset.${layer}`,
+      status: hasValidAsset(asset) ? "pass" : "warn",
+      severity: hasValidAsset(asset) ? "info" : "warn",
+      title: `${layer} asset metadata`,
+      message: hasValidAsset(asset)
+        ? `${layer} asset metadata includes owner, refreshability, and lifecycle notes.`
+        : `${layer} asset metadata is incomplete in context-manifest.json.`,
+      path: ".cortexa/context-manifest.json",
+      suggestion: hasValidAsset(asset) ? null : "Run ctx update to refresh context-manifest.json."
     });
   }
 
@@ -107,6 +144,7 @@ function checkGeneratedSnapshots(root, discovery) {
   ];
   const adapterSnapshot = readJson(join(root, ".cortexa", "adapters", "discovery.json"));
   const repoGraph = readJson(join(root, ".cortexa", "graphs", "repo-graph.json"));
+  const ownershipMap = readJson(join(root, ".cortexa", "ownership", "ownership-map.json"));
 
   if (adapterSnapshot) {
     checks.push(compareSnapshot("snapshot.discovery.adapters", "adapters", adapterSnapshot.adapters || [], discovery.adapters, ".cortexa/adapters/discovery.json"));
@@ -117,6 +155,13 @@ function checkGeneratedSnapshots(root, discovery) {
   if (repoGraph) {
     checks.push(compareSnapshot("snapshot.repo-graph.packages", "repo graph packages", (repoGraph.nodes?.packages || []).map((pkg) => pkg.path), discovery.packages.map((pkg) => pkg.path), ".cortexa/graphs/repo-graph.json"));
     checks.push(compareSnapshot("snapshot.repo-graph.features", "repo graph features", (repoGraph.nodes?.features || []).map((feature) => feature.path), discovery.features.map((feature) => feature.path), ".cortexa/graphs/repo-graph.json"));
+    checks.push(compareSnapshot("snapshot.repo-graph.source-import-nodes", "repo graph source files", (repoGraph.edges?.sourceImports?.nodes || []).map((node) => node.id), (discovery.sourceGraph?.nodes || []).map((node) => node.id), ".cortexa/graphs/repo-graph.json"));
+    checks.push(compareSnapshot("snapshot.repo-graph.source-imports", "repo graph source imports", (repoGraph.edges?.sourceImports?.edges || []).map(edgeSignature), (discovery.sourceGraph?.edges || []).map(edgeSignature), ".cortexa/graphs/repo-graph.json"));
+  }
+
+  if (ownershipMap) {
+    checks.push(compareSnapshot("snapshot.ownership.packages", "ownership packages", ownershipBoundaryPaths(ownershipMap.boundaries?.packages), discovery.packages.map((pkg) => pkg.path), ".cortexa/ownership/ownership-map.json"));
+    checks.push(compareSnapshot("snapshot.ownership.features", "ownership features", ownershipBoundaryPaths(ownershipMap.boundaries?.features), discovery.features.map((feature) => feature.path), ".cortexa/ownership/ownership-map.json"));
   }
 
   return checks;
@@ -281,4 +326,24 @@ function formatItems(values, render) {
 
 function normalizeValues(values) {
   return [...new Set(values.map((value) => String(value)).filter(Boolean))].sort();
+}
+
+function hasLifecycleKeys(lifecycle) {
+  return Boolean(lifecycle && typeof lifecycle.human === "string" && typeof lifecycle.machine === "string" && typeof lifecycle.hybrid === "string");
+}
+
+function hasValidAsset(asset) {
+  return Boolean(asset && typeof asset.owner === "string" && typeof asset.refreshable === "boolean" && typeof asset.createDirectory === "boolean" && typeof asset.reason === "string");
+}
+
+function edgeSignature(edge) {
+  if (!edge) {
+    return "";
+  }
+
+  return `${edge.from}->${edge.to}:${edge.type}`;
+}
+
+function ownershipBoundaryPaths(values) {
+  return (values || []).map((value) => value?.path).filter(Boolean);
 }

@@ -19,6 +19,7 @@ ${skill.instructions.map((instruction, index) => `${index + 1}. ${instruction}`)
 ## 上下文
 
 - 从 \`ctx pack "<task>"\` 返回的 Context Packet 开始。
+- 先检查 \`readiness\` 和 \`handoff\`，再决定是否直接执行。
 - 在扩大阅读范围前，先读取 packet 中列出的相关文件。
 - 当 packet 包含 \`.cortexa/specs/\` 下的项目规范时，按这些规范执行。
 `;
@@ -55,9 +56,11 @@ ${agent.recommendedSkills.map((skill) => `- \`${skill}\``).join("\n")}
 ## 工作流
 
 1. 在大范围探索代码前，先运行 \`ctx pack "<task>"\`。
-2. 从 \`.cortexa/skills/<skill>/\` 读取匹配的 \`SKILL.md\`。
-3. 阅读 \`.cortexa/specs/<spec>/requirements.md\`、\`design.md\` 和 \`tasks.md\` 中的相关规范。
-4. 遵循仓库约定，并说明已经完成的验证。
+2. 检查 packet 的 \`readiness\`，如果不是 \`pass\`，先收窄任务或补证据。
+3. 从 \`.cortexa/skills/<skill>/\` 读取匹配的 \`SKILL.md\`。
+4. 阅读 \`.cortexa/specs/<spec>/requirements.md\`、\`design.md\` 和 \`tasks.md\` 中的相关规范。
+5. 遵循 \`handoff\` 中的推荐顺序与风险提示。
+6. 遵循仓库约定，并说明已经完成的验证。
 
 ## 协作边界
 
@@ -179,6 +182,17 @@ export function contextPacketSchemaDocument() {
       skills: { type: "array", description: "本任务推荐使用的工程技能。" },
       agents: { type: "array", description: "本任务推荐使用的 agent。" },
       multiAgent: { type: "object", description: "多 agent 协作模式、交接协议和推荐顺序。" },
+      readingOrder: { type: "array", description: "推荐阅读顺序。" },
+      requiredFiles: { type: "array", description: "必读文件列表。" },
+      optionalFiles: { type: "array", description: "可选扩展文件列表。" },
+      riskBoundaries: { type: "array", description: "任务风险边界。" },
+      impactedModules: { type: "array", description: "受影响模块列表。" },
+      executionPrompt: { type: "string", description: "可直接交给 AI 执行的提示词。" },
+      tokenBudget: { type: "object", description: "上下文 token 预算估算。" },
+      qualityGate: { type: "object", description: "上下文质量门禁。" },
+      readiness: { type: "object", description: "是否适合直接消费该 Context Packet。" },
+      handoff: { type: "object", description: "多 agent / 编辑器消费时的交接摘要。" },
+      phaseTransition: { type: "object", description: "Context Packet 消费后的下一阶段。" },
       generatedAt: { type: "string", format: "date-time" }
     }
   };
@@ -194,14 +208,19 @@ export function workflowDocument() {
 1. Workspace Discovery: 使用 adapter 发现项目结构、框架、包、入口和功能边界。
 2. Repo Graph: 从包、入口、功能和依赖关系生成可裁剪的工程图谱。
 3. Context Resolve: 根据任务选择最小相关 scope、specs 和 skills。
-4. Skill Execution: 使用匹配的 \`.cortexa/skills/<skill>/SKILL.md\` 执行工程能力。
-5. Result Summary: 输出变更、验证、风险和需要沉淀到 spec 的问题。
+4. Readiness Gate: 检查 \`qualityGate\` 和 \`readiness\`，确认是否可以直接消费 packet。
+5. Phase Transition: 根据 \`phaseTransition\` 决定执行、复核或收窄任务。
+6. Skill Execution: 使用匹配的 \`.cortexa/skills/<skill>/SKILL.md\` 执行工程能力。
+7. Handoff Summary: 按 \`handoff\` 字段交接给下一个 agent 或编辑器步骤。
+8. Result Summary: 输出变更、验证、风险和需要沉淀到 spec 的问题。
 
 ## 隔离原则
 
 - 每个任务都应从新的 Context Packet 开始。
 - 不把上一次任务的临时假设写入长期上下文，除非它已经进入 specs 或 ownership。
 - 当 scope 不足时，先解释扩展原因，再读取更多文件。
+- 当 \`readiness.shouldProceed\` 为 false 时，先收窄任务或补证据，再继续执行。
+- 当 \`phaseTransition.nextPhase\` 不是 \`execute\` 时，先按提示转入 review 或 refine-task。
 `;
 }
 
@@ -220,8 +239,10 @@ export function multiAgentReadmeDocument() {
 
 1. 先运行 \`ctx pack "<task>"\` 获取 Context Packet。
 2. 根据 packet 中的 \`agents\` 和 \`multiAgent\` 字段选择协作模式。
-3. 每个 agent 只读取自己需要的 scope、specs 和 skills。
-4. agent 之间通过交接摘要传递结论，不共享未整理的临时上下文。
+3. 先查看 packet 中的 \`readiness\`，确认该包是否可以直接消费。
+4. 先查看 packet 中的 \`phaseTransition\`，确认下一步是执行、复核还是收窄任务。
+5. 每个 agent 只读取自己需要的 scope、specs 和 skills。
+6. agent 之间通过 packet 中的 \`handoff\` 传递结论，不共享未整理的临时上下文。
 `;
 }
 

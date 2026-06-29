@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { discoverWorkspace } from "../workspace/discovery.js";
+import { createOwnershipMap } from "../../../../workspace/ownership/src/index.js";
 import { readJson, writeIfMissing, writeJson } from "../core/fs.js";
 import { resolveTemplate } from "../setup/options.js";
 import {
@@ -492,22 +493,23 @@ function repoGraphSnapshot(discovery) {
 }
 
 function ownershipMapSnapshot(discovery) {
+  const inferred = createOwnershipMap(discovery);
   return {
     version: 1,
     updatedAt: new Date().toISOString(),
     project: discovery.name,
-    owners: [],
+    owners: [...inferred.values()],
     boundaries: {
-      packages: discovery.packages.map((pkg) => ({
+      packages: discovery.packages.map((pkg) => inferred.get(pkg.path) || {
         path: pkg.path,
         owner: null,
         notes: ""
-      })),
-      features: discovery.features.map((feature) => ({
+      }),
+      features: discovery.features.map((feature) => inferred.get(feature.path) || {
         path: feature.path,
         owner: null,
         notes: ""
-      })),
+      }),
       lowTrust: [],
       generated: ["dist", "build", "coverage"]
     },

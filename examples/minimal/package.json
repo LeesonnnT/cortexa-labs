@@ -1,0 +1,13 @@
+{
+  "name": "cortexa-minimal-example",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node src/index.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "react": "^18.0.0"
+  }
+}

@@ -16,11 +16,34 @@ npm create cortexa@latest
 npm install --save-dev @cortexa-labs/cli
 ```
 
+要求：
+
+- Node.js >= 18
+- 使用 `npm create cortexa@latest` 时需要 npm 可用
+- 目标项目目录需要存在 `package.json`
+
 然后显式初始化：
 
 ```bash
 npx --no-install ctx setup --interactive
 ```
+
+## 诊断
+
+检查当前环境和 Cortexa 资产：
+
+```bash
+npx --no-install ctx doctor
+```
+
+`doctor` 会报告 Node/npm 可用性、项目形态、`.cortexa` 核心资产和下一步建议。发布前可以在仓库根目录运行：
+
+```bash
+npm test
+npm run check
+```
+
+`npm run check` 会执行 release gate，包括 CLI smoke test、单测、文档和示例项目生命周期检查。
 
 ## 初始化
 

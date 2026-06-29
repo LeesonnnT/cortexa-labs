@@ -37,6 +37,12 @@ if (!existsSync(packageJsonPath)) {
   process.exit(1);
 }
 
+if (!commandAvailable(npmCommand, npmBaseArgs)) {
+  console.error("npm was not found, but it is required to install @cortexa-labs/cli.");
+  console.error("Install Node.js with npm, or ensure npm is available on PATH, then run `npm create cortexa@latest` again.");
+  process.exit(1);
+}
+
 console.log("Installing @cortexa-labs/cli as a development dependency...");
 const install = spawnSync(npmCommand, [...npmBaseArgs, "install", "--save-dev", cliSpec, "--ignore-scripts"], {
   cwd: root,
@@ -82,3 +88,13 @@ if (setup.status !== 0) {
 }
 
 console.log("\nCortexa is ready. Use `npx --no-install ctx pack \"<task>\"` to build task context.");
+
+function commandAvailable(command, baseArgs) {
+  const result = spawnSync(command, [...baseArgs, "--version"], {
+    cwd: root,
+    encoding: "utf8",
+    shell: process.platform === "win32"
+  });
+
+  return result.status === 0;
+}

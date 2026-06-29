@@ -32,6 +32,7 @@ export function explainContextQuality(context) {
 
   return {
     confidence,
+    qualityGate: createQualityGate(confidence, requiredFiles, missedSignals, warnings, tokenBudget),
     metrics,
     summary: summarizeContextQuality(confidence, requiredFiles, missedSignals, warnings),
     resolver: {
@@ -73,6 +74,44 @@ export function explainContextQuality(context) {
     missedSignals,
     warnings,
     nextActions: recommendContextActions(confidence, resolvedContext, requiredFiles, optionalFiles, missedSignals, tokenBudget)
+  };
+}
+
+function createQualityGate(confidence, requiredFiles, missedSignals, warnings, tokenBudget) {
+  const reasons = [];
+
+  if (requiredFiles.length === 0) {
+    reasons.push("没有选出稳定的 requiredFiles。");
+  }
+
+  if (missedSignals.length > 0) {
+    reasons.push(`存在 ${missedSignals.length} 个未覆盖的语义信号。`);
+  }
+
+  if (warnings.length > 0) {
+    reasons.push(`${warnings.length} 个质量警告需要复核。`);
+  }
+
+  if (["large", "too-large"].includes(tokenBudget.level)) {
+    reasons.push(`token 预算偏大：${tokenBudget.level}。`);
+  }
+
+  const status =
+    requiredFiles.length === 0 || confidence < 0.45
+      ? "block"
+      : missedSignals.length > 0 || warnings.length > 0 || confidence < 0.75
+        ? "review"
+        : "pass";
+
+  return {
+    status,
+    reasons: reasons.length > 0 ? reasons : ["上下文质量满足直接执行。"],
+    recommendation:
+      status === "pass"
+        ? "可以按 readingOrder 执行。"
+        : status === "review"
+          ? "建议先查看 warnings 和 missedSignals，再决定是否扩大上下文。"
+          : "先收窄任务或补充更明确的上下文锚点，再重新 pack。"
   };
 }
 

@@ -14,6 +14,9 @@ export function createContextPacket(root, task, options = {}) {
   const agents = selectAgentsForTask(root, task, skills, specs, scope);
   const multiAgent = selectMultiAgentPlan(task, workspace, scope, agents);
   const contextCompilation = compileTaskContext(root, task, workspace, scope, specs, skills, agents, multiAgent, intent);
+  const readiness = createReadinessBundle(contextCompilation.contextQuality);
+  const handoff = createHandoffBundle(task, scope, specs, skills, agents, multiAgent, contextCompilation, readiness);
+  const phaseTransition = createPhaseTransition(readiness, multiAgent);
 
   return {
     task,
@@ -45,6 +48,10 @@ export function createContextPacket(root, task, options = {}) {
     impactedModules: contextCompilation.impactedModules,
     executionPrompt: contextCompilation.executionPrompt,
     tokenBudget: contextCompilation.tokenBudget,
+    qualityGate: contextCompilation.contextQuality.qualityGate,
+    readiness,
+    handoff,
+    phaseTransition,
     ...(options.explain ? { contextQuality: contextCompilation.contextQuality } : {}),
     generatedAt: new Date().toISOString()
   };
@@ -163,6 +170,68 @@ function compileTaskContext(root, task, workspace, scope, specs, skills, agents,
     executionPrompt: createExecutionPrompt(task, intent, readingOrder, requiredFiles, optionalFiles, riskBoundaries, multiAgent, tokenBudget),
     tokenBudget,
     contextQuality
+  };
+}
+
+function createReadinessBundle(contextQuality) {
+  const status = contextQuality.qualityGate.status;
+  return {
+    status,
+    shouldProceed: status === "pass",
+    needsReview: status === "review",
+    blocked: status === "block",
+    summary: contextQuality.summary,
+    reasons: contextQuality.qualityGate.reasons,
+    recommendation: contextQuality.qualityGate.recommendation,
+    nextActions: contextQuality.nextActions.slice(0, 3)
+  };
+}
+
+function createHandoffBundle(task, scope, specs, skills, agents, multiAgent, contextCompilation, readiness) {
+  const fallbackOrder = ["project-context-analyst"];
+  const recommendedOrder = multiAgent.recommendedOrder.length > 0 ? multiAgent.recommendedOrder : fallbackOrder;
+  const nextAgent = recommendedOrder[0] || agents[0]?.id || "project-context-analyst";
+
+  return {
+    protocol: multiAgent.protocol,
+    schema: multiAgent.handoffSchema,
+    mode: multiAgent.mode,
+    task,
+    scope: scope.slice(0, 12),
+    specs: specs.map((spec) => spec.id),
+    skills,
+    agents: agents.map((agent) => agent.id),
+    nextAgent,
+    recommendedOrder,
+    readingOrder: contextCompilation.readingOrder.slice(0, 12),
+    requiredFiles: contextCompilation.requiredFiles.slice(0, 12).map((file) => file.path),
+    risks: contextCompilation.riskBoundaries.map((risk) => risk.area),
+    readiness: {
+      status: readiness.status,
+      shouldProceed: readiness.shouldProceed,
+      blocked: readiness.blocked
+    },
+    phaseTransition: createPhaseTransition(readiness, multiAgent),
+    summary: readiness.summary,
+    executionPrompt: contextCompilation.executionPrompt
+  };
+}
+
+function createPhaseTransition(readiness, multiAgent) {
+  const nextPhase =
+    readiness.blocked ? "refine-task" : readiness.needsReview ? "review" : multiAgent.mode === "review-gate" ? "execute" : "execute";
+
+  return {
+    currentPhase: "context-ready",
+    nextPhase,
+    mode: multiAgent.mode,
+    gate: readiness.status,
+    reason:
+      nextPhase === "execute"
+        ? "Context Packet is ready to consume."
+        : nextPhase === "review"
+          ? "Context Packet should be reviewed before execution."
+          : "Task needs narrowing or more evidence before execution."
   };
 }
 
@@ -688,6 +757,9 @@ function createExecutionPrompt(task, intent, readingOrder, requiredFiles, option
 
   return [
     `You are working on a ${intent.type} task: ${task}`,
+    "",
+    "Readiness gate:",
+    "- Consume the packet only after checking readiness and phaseTransition.",
     "",
     "Read context in this order:",
     firstReads || "1. Start from the selected scope in the Context Packet.",

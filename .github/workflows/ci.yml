@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+
+jobs:
+  test:
+    name: Test and release checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Test
+        run: npm test
+
+      - name: Release checks
+        run: npm run check:release
+
+      - name: Pack CLI
+        run: npm pack --workspace apps/cli --dry-run
+
+      - name: Pack initializer
+        run: npm pack --workspace apps/create-cortexa --dry-run

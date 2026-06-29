@@ -36,7 +36,8 @@ export function analyzeProject(root) {
   const workspacePatterns = detectWorkspacePatterns(root, packageJson, packageManager);
   const packages = discoverPackages(root, workspacePatterns);
   const sourceFiles = listSourceFiles(root);
-  const sourceGraph = buildSourceGraph(root, sourceFiles);
+  const tsconfigPaths = loadTsconfigPaths(root);
+  const sourceGraph = buildSourceGraph(root, sourceFiles, tsconfigPaths);
   const frameworks = [
     ...new Set([
       ...detectFrameworks(root, packageJson, sourceFiles),
@@ -586,22 +587,82 @@ function discoverFeatures(root, sourceFiles) {
       continue;
     }
 
-    for (const entry of readdirSync(absolute, { withFileTypes: true })) {
-      if (!entry.isDirectory() || ignoredDirectories.has(entry.name)) {
-        continue;
-      }
+    collectFeatures(features, featureRoot, absolute, sourceFiles);
+  }
 
-      const path = normalizePath(join(featureRoot, entry.name));
+  return uniqueBy(features, (feature) => feature.path).sort((a, b) => a.path.localeCompare(b.path));
+}
+
+function collectFeatures(features, featureRoot, absolute, sourceFiles) {
+  const entries = readdirSync(absolute, { withFileTypes: true });
+  const fileCount = entries.filter((entry) => entry.isFile() && sourceExtensions.has(extname(entry.name))).length;
+  const subdirectories = entries.filter((entry) => entry.isDirectory() && !ignoredDirectories.has(entry.name));
+
+  if (fileCount > 0 || subdirectories.length === 0) {
+    const featurePath = normalizePath(featureRoot);
+    const files = sourceFiles.filter((file) => file === featurePath || file.startsWith(`${featurePath}/`)).slice(0, 20);
+
+    if (files.length > 0 || fileCount > 0) {
       features.push({
-        name: entry.name,
-        path,
+        name: basename(featurePath),
+        path: featurePath,
         kind: classifyFeature(featureRoot),
-        files: sourceFiles.filter((file) => file === path || file.startsWith(`${path}/`)).slice(0, 20)
+        files
       });
     }
   }
 
-  return uniqueBy(features, (feature) => feature.path).sort((a, b) => a.path.localeCompare(b.path));
+  for (const entry of subdirectories) {
+    const childRoot = join(absolute, entry.name);
+    const featurePath = normalizePath(join(featureRoot, entry.name));
+    const childFiles = sourceFiles.filter((file) => file === featurePath || file.startsWith(`${featurePath}/`)).slice(0, 20);
+
+    if (childFiles.length > 0) {
+      features.push({
+        name: entry.name,
+        path: featurePath,
+        kind: classifyFeature(featureRoot),
+        files: childFiles
+      });
+    }
+
+    collectNestedFeatures(features, featureRoot, childRoot, featurePath, sourceFiles);
+  }
+}
+
+function collectNestedFeatures(features, featureRoot, absolute, featurePath, sourceFiles) {
+  const entries = readdirSync(absolute, { withFileTypes: true });
+  const fileCount = entries.filter((entry) => entry.isFile() && sourceExtensions.has(extname(entry.name))).length;
+  const subdirectories = entries.filter((entry) => entry.isDirectory() && !ignoredDirectories.has(entry.name));
+
+  if (fileCount > 0) {
+    const files = sourceFiles.filter((file) => file === featurePath || file.startsWith(`${featurePath}/`)).slice(0, 20);
+    if (files.length > 0) {
+      features.push({
+        name: basename(featurePath),
+        path: featurePath,
+        kind: classifyFeature(featureRoot),
+        files
+      });
+    }
+  }
+
+  for (const entry of subdirectories) {
+    const childAbsolute = join(absolute, entry.name);
+    const childPath = normalizePath(join(featurePath, entry.name));
+    const childFiles = sourceFiles.filter((file) => file === childPath || file.startsWith(`${childPath}/`)).slice(0, 20);
+
+    if (childFiles.length > 0) {
+      features.push({
+        name: entry.name,
+        path: childPath,
+        kind: classifyFeature(featureRoot),
+        files: childFiles
+      });
+    }
+
+    collectNestedFeatures(features, featureRoot, childAbsolute, childPath, sourceFiles);
+  }
 }
 
 function classifyFeature(featureRoot) {
@@ -686,7 +747,7 @@ function buildDependencyGraph(root, packageJson, packages, sourceGraph) {
   };
 }
 
-function buildSourceGraph(root, sourceFiles) {
+function buildSourceGraph(root, sourceFiles, tsconfigPaths = null) {
   const fileSet = new Set(sourceFiles);
   const edges = [];
 
@@ -694,11 +755,7 @@ function buildSourceGraph(root, sourceFiles) {
     const imports = extractImports(readText(join(root, file)));
 
     for (const specifier of imports) {
-      if (!specifier.startsWith(".")) {
-        continue;
-      }
-
-      const resolved = resolveImportPath(file, specifier, fileSet);
+      const resolved = resolveImportPath(file, specifier, fileSet, tsconfigPaths);
       if (resolved) {
         edges.push({
           from: file,
@@ -735,16 +792,71 @@ function extractImports(content) {
   return imports;
 }
 
-function resolveImportPath(fromFile, specifier, fileSet) {
+function resolveImportPath(fromFile, specifier, fileSet, tsconfigPaths = null) {
   const baseDir = dirname(fromFile);
-  const target = normalizePath(join(baseDir, specifier));
-  const candidates = [
-    target,
-    ...[...sourceExtensions].map((extension) => `${target}${extension}`),
-    ...[...sourceExtensions].map((extension) => normalizePath(join(target, `index${extension}`)))
-  ];
+  const normalized = normalizePath(specifier);
+  const candidates = [];
+
+  if (normalized.startsWith(".")) {
+    const target = normalizePath(join(baseDir, normalized));
+    candidates.push(
+      target,
+      ...[...sourceExtensions].map((extension) => `${target}${extension}`),
+      ...[...sourceExtensions].map((extension) => normalizePath(join(target, `index${extension}`)))
+    );
+  } else if (tsconfigPaths) {
+    candidates.push(...resolveTsconfigPathCandidates(normalized, tsconfigPaths));
+  }
 
   return candidates.find((candidate) => fileSet.has(candidate)) || null;
+}
+
+function loadTsconfigPaths(root) {
+  const config = readJson(join(root, "tsconfig.json"));
+  const compilerOptions = config?.compilerOptions || {};
+  const baseUrl = compilerOptions.baseUrl ? normalizePath(join("", compilerOptions.baseUrl)) : ".";
+  const paths = compilerOptions.paths || {};
+  const mappings = [];
+
+  for (const [pattern, targets] of Object.entries(paths)) {
+    const wildcardIndex = pattern.indexOf("*");
+    const prefix = wildcardIndex === -1 ? pattern : pattern.slice(0, wildcardIndex);
+    const suffix = wildcardIndex === -1 ? "" : pattern.slice(wildcardIndex + 1);
+    mappings.push({
+      pattern,
+      prefix,
+      suffix,
+      targets: Array.isArray(targets) ? targets : [targets]
+    });
+  }
+
+  return {
+    baseUrl,
+    mappings
+  };
+}
+
+function resolveTsconfigPathCandidates(specifier, tsconfigPaths) {
+  const results = [];
+
+  for (const mapping of tsconfigPaths.mappings || []) {
+    if (!specifier.startsWith(mapping.prefix) || !specifier.endsWith(mapping.suffix)) {
+      continue;
+    }
+
+    const middle = specifier.slice(mapping.prefix.length, specifier.length - mapping.suffix.length);
+
+    for (const target of mapping.targets) {
+      const replaced = normalizePath(join(tsconfigPaths.baseUrl || ".", target.replace("*", middle)));
+      results.push(
+        replaced,
+        ...[...sourceExtensions].map((extension) => `${replaced}${extension}`),
+        ...[...sourceExtensions].map((extension) => normalizePath(join(replaced, `index${extension}`)))
+      );
+    }
+  }
+
+  return results;
 }
 
 function summarizeExtensions(sourceFiles) {

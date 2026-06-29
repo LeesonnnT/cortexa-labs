@@ -15,6 +15,9 @@
     "dev": "node apps/cli/src/index.js",
     "start": "node apps/cli/src/index.js",
     "ctx": "node apps/cli/src/index.js",
-    "check": "node apps/cli/src/index.js doctor"
+    "doctor": "node apps/cli/src/index.js doctor",
+    "test": "node --test apps/cli/test apps/create-cortexa/test/initializer.test.js workspace/ownership/src/index.test.js",
+    "check:release": "node scripts/check-release.js",
+    "check": "npm run check:release"
   }
 }

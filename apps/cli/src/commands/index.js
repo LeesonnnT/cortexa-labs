@@ -1,6 +1,7 @@
-import { existsSync, readFileSync } from "node:fs";
-import { join, relative } from "node:path";
+import { readFileSync } from "node:fs";
+import { relative } from "node:path";
 import { createContextPacket } from "../context/packet.js";
+import { createDoctorReport } from "../diagnostics/doctor.js";
 import { listEditorIntegrations, setupEditors, teardownEditors } from "../editors/rules.js";
 import { setupProjectKit, setupStarterKit, updateProjectKit } from "../project-kit/index.js";
 import { analyzeWorkspace } from "../reports/analyze.js";
@@ -57,13 +58,11 @@ function createCommands(cwd, args) {
         console.log(packageJson.version);
       },
       doctor() {
-        const checks = {
-          cli: true,
-          packageJson: existsSync(join(cwd, "package.json")),
-          cortexaConfig: existsSync(join(cwd, ".cortexa", "workspace.json"))
-        };
-    
-        console.log(JSON.stringify(checks, null, 2));
+        const report = createDoctorReport(cwd);
+        console.log(JSON.stringify(report, null, 2));
+        if (report.status === "fail") {
+          process.exitCode = 1;
+        }
       },
       init() {
         try {

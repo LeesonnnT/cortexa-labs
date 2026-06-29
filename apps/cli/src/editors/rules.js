@@ -15,9 +15,12 @@ Use Cortexa before broad repository exploration for engineering tasks:
 
 1. Run \`ctx discover\` when repository structure is unknown.
 2. Run \`ctx pack "<task>"\` to obtain the minimal structured context packet.
-3. Read the specs listed in the packet from \`.cortexa/specs/\` before applying project conventions.
-4. If \`.cortexa/project-kit.json\` or \`.cortexa/starter-kit.json\` exists, use its matching skill or agent profile for the task.
-5. Work from that packet and expand scope only when the task requires it.
+3. Check \`readiness\` and \`qualityGate\` before starting execution.
+4. Check \`phaseTransition\` to decide whether to execute, review, or refine the task.
+5. Read the specs listed in the packet from \`.cortexa/specs/\` before applying project conventions.
+6. If \`.cortexa/project-kit.json\` or \`.cortexa/starter-kit.json\` exists, use its matching skill or agent profile for the task.
+7. Use \`handoff\` when the task moves between agents or phases.
+8. Work from that packet and expand scope only when the task requires it.
 
 When the CLI is installed as a local dependency, invoke it as \`npx --no-install ctx <command>\`.
 ${managedEnd}`;

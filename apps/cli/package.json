@@ -23,6 +23,6 @@
     "start": "node src/index.js",
     "doctor": "node src/index.js doctor",
     "test": "node --test",
-    "prepublishOnly": "npm run doctor"
+    "prepublishOnly": "node ../../scripts/check-release.js"
   }
 }

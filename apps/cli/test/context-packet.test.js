@@ -23,6 +23,7 @@ test("ctx pack classifies Vue auth bugfixes and exposes file evidence", () => {
     assert.ok(packet.requiredFiles.some((file) => file.evidence.length > 0));
     assert.ok(packet.contextQuality.metrics.requiredCount > 0);
     assert.ok(packet.contextQuality.metrics.candidateCount >= packet.contextQuality.metrics.requiredCount);
+    assert.equal(packet.qualityGate.status, "pass");
   } finally {
     removeFixture(root);
   }
@@ -42,6 +43,7 @@ test("ctx pack anchors React page feature work to the matching page directory", 
     assert.ok(packet.scope.includes("src/pages/settings"));
     assert.ok(packet.requiredFiles.some((file) => file.path === "src/pages/settings/index.tsx"));
     assert.ok(packet.contextQuality.metrics.strongAnchors > 0);
+    assert.equal(packet.qualityGate.status, "pass");
   } finally {
     removeFixture(root);
   }
@@ -61,6 +63,7 @@ test("ctx pack recognizes Next.js test tasks and keeps test files visible", () =
     assert.ok(packet.requiredFiles.some((file) => file.path.endsWith("checkout.spec.tsx")));
     assert.ok(packet.contextQuality.selectedFiles.some((file) => file.sources.includes("semantic-role")));
     assert.ok(packet.contextQuality.metrics.stable);
+    assert.equal(packet.qualityGate.status, "pass");
   } finally {
     removeFixture(root);
   }
@@ -83,6 +86,106 @@ test("ctx pack resolves monorepo package context with multi-source evidence", ()
     assert.ok(packet.requiredFiles.some((file) => file.path === "packages/api/src/request.ts"));
     assert.ok(packet.requiredFiles.some((file) => file.sources.length > 1));
     assert.ok(packet.contextQuality.metrics.multiEvidenceFiles > 0);
+    assert.equal(packet.qualityGate.status, "pass");
+  } finally {
+    removeFixture(root);
+  }
+});
+
+test("ctx pack marks weakly anchored tasks for review", () => {
+  const root = createFixture("weak-anchor");
+  try {
+    writeProjectFile(root, "package.json", JSON.stringify({ name: "weak-anchor", dependencies: { react: "^18.0.0" } }));
+    writeProjectFile(root, "src/App.tsx", "export function App() { return null; }\n");
+
+    const packet = createContextPacket(root, "improve something here", { explain: true });
+
+    assert.notEqual(packet.qualityGate.status, "pass");
+    assert.ok(packet.contextQuality.warnings.some((warning) => warning.type === "weak-anchor" || warning.type === "empty-required-context"));
+    assert.equal(packet.phaseTransition.nextPhase, "refine-task");
+  } finally {
+    removeFixture(root);
+  }
+});
+
+test("ctx pack resolves tsconfig path aliases into source graph evidence", () => {
+  const root = createFixture("tsconfig-alias");
+  try {
+    writeProjectFile(
+      root,
+      "package.json",
+      JSON.stringify({
+        name: "tsconfig-alias",
+        dependencies: { react: "^18.0.0" }
+      })
+    );
+    writeProjectFile(
+      root,
+      "tsconfig.json",
+      JSON.stringify({
+        compilerOptions: {
+          baseUrl: ".",
+          paths: {
+            "@/*": ["src/*"]
+          }
+        }
+      })
+    );
+    writeProjectFile(root, "src/App.tsx", "import { request } from '@/api/request';\nexport function App() { request(); return null; }\n");
+    writeProjectFile(root, "src/api/request.ts", "export function request() { return fetch('/api'); }\n");
+
+    const packet = createContextPacket(root, "fix api request", { explain: true });
+
+    assert.equal(packet.intent.type, "bugfix");
+    assert.ok(packet.packages.length === 0 || packet.scope.includes("src/api"));
+    assert.ok(packet.requiredFiles.some((file) => file.path === "src/api/request.ts"));
+    assert.ok(packet.contextQuality.selectedFiles.some((file) => file.sources.includes("source-graph") || file.sources.includes("content-preview")));
+  } finally {
+    removeFixture(root);
+  }
+});
+
+test("ctx pack recognizes nested page features", () => {
+  const root = createFixture("nested-feature");
+  try {
+    writeProjectFile(root, "package.json", JSON.stringify({ name: "nested-feature", dependencies: { react: "^18.0.0" } }));
+    writeProjectFile(root, "src/pages/account/profile/index.tsx", "export function ProfilePage() { return null; }\n");
+    writeProjectFile(root, "src/pages/account/settings/index.tsx", "export function SettingsPage() { return null; }\n");
+
+    const packet = createContextPacket(root, "update account profile page", { explain: true });
+
+    assert.ok(packet.features.some((feature) => feature.path === "src/pages/account/profile" || feature.path === "src/pages/account"));
+    assert.ok(packet.scope.some((scopePath) => scopePath.includes("src/pages/account/profile")));
+    assert.ok(packet.requiredFiles.some((file) => file.path === "src/pages/account/profile/index.tsx"));
+    assert.equal(packet.qualityGate.status, "pass");
+  } finally {
+    removeFixture(root);
+  }
+});
+
+test("ctx pack includes readiness and handoff data for review-gate tasks", () => {
+  const root = createFixture("handoff");
+  try {
+    writeProjectFile(root, "package.json", JSON.stringify({ name: "handoff", dependencies: { react: "^18.0.0" } }));
+    writeProjectFile(root, "src/App.tsx", "export function App() { return null; }\n");
+    writeProjectFile(root, "src/pages/login/index.tsx", "export function LoginPage() { return null; }\n");
+
+    const packet = createContextPacket(root, "review and fix login flow", { explain: true });
+
+    assert.equal(packet.multiAgent.mode, "review-gate");
+    assert.equal(packet.readiness.status, packet.qualityGate.status);
+    assert.ok(packet.readiness.summary);
+    assert.ok(packet.handoff.protocol.includes(".cortexa/multi-agent/collaboration.md"));
+    assert.ok(packet.handoff.schema.includes(".cortexa/multi-agent/handoff.schema.json"));
+    assert.equal(packet.handoff.mode, "review-gate");
+    assert.ok(packet.handoff.nextAgent);
+    assert.ok(packet.handoff.recommendedOrder.length > 0);
+    assert.ok(packet.handoff.readiness);
+    assert.ok(packet.handoff.phaseTransition);
+    assert.equal(packet.phaseTransition.nextPhase, "execute");
+    assert.ok(packet.handoff.executionPrompt.includes("You are working on a"));
+    assert.ok(packet.handoff.executionPrompt.includes("Readiness gate"));
+    assert.ok(packet.readiness.shouldProceed);
   } finally {
     removeFixture(root);
   }
