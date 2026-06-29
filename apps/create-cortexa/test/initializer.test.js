@@ -47,6 +47,35 @@ test("npm create cortexa initializes a project from a local CLI spec", () => {
   }
 });
 
+test("npm create cortexa can build an initial Context Packet", () => {
+  const fixture = mkdtempSync(join(tmpdir(), "cortexa-create-task-"));
+  try {
+    writeProjectFile(fixture, "package.json", JSON.stringify({ name: "initializer-task-fixture", dependencies: { react: "^18.0.0" } }, null, 2));
+    writeProjectFile(fixture, "src/pages/settings/index.tsx", "export function SettingsPage() { return null; }\n");
+
+    const initializer = join(repoRoot, "apps", "create-cortexa", "src", "index.js");
+    const cliSpec = pathToFileURL(join(repoRoot, "apps", "cli")).href;
+    const env = {
+      ...process.env,
+      CORTEXA_CLI_SPEC: cliSpec,
+      npm_execpath: "npm"
+    };
+
+    const initResult = spawnSync(process.execPath, [initializer, "--yes", "--task", "update settings page"], {
+      cwd: fixture,
+      env,
+      encoding: "utf8"
+    });
+
+    assert.equal(initResult.status, 0, initResult.stderr || initResult.stdout);
+    assert.match(initResult.stdout, /Building initial Context Packet/);
+    assert.match(initResult.stdout, /"task": "update settings page"/);
+    assert.match(initResult.stdout, /"phaseTransition"/);
+  } finally {
+    rmSync(fixture, { recursive: true, force: true });
+  }
+});
+
 function writeProjectFile(root, path, content) {
   const target = join(root, path);
   mkdirSync(dirname(target), { recursive: true });

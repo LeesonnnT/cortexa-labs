@@ -22,10 +22,16 @@ npm create cortexa@latest
 npm create cortexa@latest -- --yes
 ```
 
+初始化后立即生成任务上下文：
+
+```bash
+npm create cortexa@latest -- --yes --task "fix login token expiration"
+```
+
 直接指定选项：
 
 ```bash
-npm create cortexa@latest -- --template frontend --editors codex,cursor
+npm create cortexa@latest -- --template frontend --editors codex,cursor --task "fix login token expiration"
 ```
 
 ## 故障排查
@@ -39,5 +45,5 @@ npm --version
 如果 CLI 已安装但 setup 没完成，可以继续执行：
 
 ```bash
-npx --no-install ctx setup --interactive
+npx --no-install ctx go "fix login token expiration"
 ```

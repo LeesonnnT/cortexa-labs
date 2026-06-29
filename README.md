@@ -11,25 +11,19 @@ The core product promise is simple:
 Inside an existing npm project:
 
 ```bash
-npm create cortexa@latest
+npm create cortexa@latest -- --yes --task "fix login token expiration"
 ```
 
-Non-interactive setup:
+After Cortexa is installed, the everyday path is one command:
 
 ```bash
-npm create cortexa@latest -- --yes
+npx --no-install ctx go --explain "fix login token expiration"
 ```
 
 Choose a template and editor integrations explicitly:
 
 ```bash
-npm create cortexa@latest -- --template frontend --editors codex,cursor
-```
-
-Then build context for a task:
-
-```bash
-npx --no-install ctx pack --explain "fix login token expiration"
+npm create cortexa@latest -- --template frontend --editors codex,cursor --task "fix login token expiration"
 ```
 
 ## Common Commands
@@ -39,12 +33,13 @@ npx --no-install ctx setup --template auto --editors codex
 npx --no-install ctx discover
 npx --no-install ctx analyze
 npx --no-install ctx audit
+npx --no-install ctx go --explain "<task>"
 npx --no-install ctx pack --explain "<task>"
 npx --no-install ctx update
 npx --no-install ctx teardown
 ```
 
-`ctx setup` creates the local `.cortexa/` context asset system. `ctx pack --explain` compiles task context and includes quality diagnostics. `ctx audit` checks whether generated snapshots, manifests, and core assets are healthy.
+`ctx go` creates or refreshes the local `.cortexa/` context assets and then returns a Context Packet for the task. Use `ctx pack --explain` when you only want to compile context without setup/update side effects. `ctx audit` checks whether generated snapshots, manifests, and core assets are healthy.
 
 ## Generated Assets
 

@@ -1,5 +1,5 @@
-import { readFileSync } from "node:fs";
-import { relative } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { join, relative } from "node:path";
 import { createContextPacket } from "../context/packet.js";
 import { createDoctorReport } from "../diagnostics/doctor.js";
 import { listEditorIntegrations, setupEditors, teardownEditors } from "../editors/rules.js";
@@ -37,6 +37,7 @@ function createCommands(cwd, args) {
       ctx analyze
       ctx audit
       ctx pack [--explain] <task>
+      ctx go [--explain] [--template auto|minimal|frontend|backend|monorepo] [--editors codex|cursor|all|codex,cursor,...] <task>
     
     Commands:
       help      Show this help.
@@ -50,6 +51,7 @@ function createCommands(cwd, args) {
       analyze   Generate project structure and risk reports under .cortexa/reports.
       audit     Check Cortexa context assets and snapshot freshness.
       pack      Build a minimal context packet. Use --explain to include quality diagnostics.
+      go        One-command setup/update and context packet creation for a task.
     `);
       },
       version() {
@@ -172,10 +174,81 @@ function createCommands(cwd, args) {
         const explain = hasFlag(args, "--explain");
         const task = args.filter((arg) => arg !== "--explain").join(" ").trim() || "default-task";
         console.log(JSON.stringify(createContextPacket(cwd, task, { explain }), null, 2));
+      },
+      go() {
+        try {
+          const explain = hasFlag(args, "--explain");
+          const task = parseTask(args) || taskArgs(args).join(" ").trim() || "default-task";
+          ensureReadyWorkspace(cwd, args);
+          console.log(JSON.stringify(createContextPacket(cwd, task, { explain }), null, 2));
+        } catch (error) {
+          console.error(error.message);
+          process.exitCode = 1;
+        }
       }
   };
 
   return commands;
+}
+
+function taskArgs(args) {
+  const result = [];
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+
+    if (arg === "--explain" || arg === "--yes" || arg === "-y") {
+      continue;
+    }
+
+    if (arg === "--template" || arg === "--editors" || arg === "--editor") {
+      index += 1;
+      continue;
+    }
+
+    if (arg === "--task") {
+      index += 1;
+      continue;
+    }
+
+    if (arg.startsWith("--template=") || arg.startsWith("--editors=") || arg.startsWith("--editor=") || arg.startsWith("--task=")) {
+      continue;
+    }
+
+    result.push(arg);
+  }
+
+  return result;
+}
+
+function parseTask(args) {
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+
+    if (arg === "--task") {
+      return args[index + 1] || "";
+    }
+
+    if (arg.startsWith("--task=")) {
+      return arg.slice(arg.indexOf("=") + 1);
+    }
+  }
+
+  return "";
+}
+
+function ensureReadyWorkspace(cwd, args) {
+  const workspacePath = join(cwd, ".cortexa", "workspace.json");
+  const hasWorkspace = existsSync(workspacePath);
+
+  if (!hasWorkspace) {
+    const workspace = initializeWorkspace(cwd, parseTemplateSelection(args));
+    setupEditors(cwd, parseEditorSelection(args));
+    setupProjectKit(cwd, workspace.template);
+    setupStarterKit(cwd, workspace.template);
+    return;
+  }
+
+  updateProjectKit(cwd, parseTemplateSelection(args));
 }
 
 export async function runCli(argv = process.argv, cwd = process.cwd()) {

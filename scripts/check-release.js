@@ -68,7 +68,7 @@ function checkDocumentation() {
 
   const readme = readFileSync(join(root, "README.md"), "utf8");
   assert.match(readme, /npm create cortexa@latest/);
-  assert.match(readme, /ctx pack --explain/);
+  assert.match(readme, /ctx go --explain/);
   assert.doesNotMatch(readme, /\uFFFD/);
 }
 
@@ -97,8 +97,7 @@ function runExampleLifecycle() {
     writeProjectFile(fixture, "src/App.tsx", "export function App() { return null; }\n");
 
     const cli = join(root, "apps", "cli", "src", "index.js");
-    run(process.execPath, [cli, "setup", "--template", "frontend", "--editors", "codex"], fixture);
-    run(process.execPath, [cli, "pack", "--explain", "add settings page"], fixture);
+    run(process.execPath, [cli, "go", "--template", "frontend", "--editors", "codex", "--explain", "add settings page"], fixture);
     run(process.execPath, [cli, "audit"], fixture, { allowNonZero: true });
   } finally {
     rmSync(fixture, { recursive: true, force: true });

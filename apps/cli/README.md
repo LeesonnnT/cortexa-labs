@@ -221,10 +221,13 @@ npm uninstall -g @cortexa-labs/cli
 npx --no-install ctx discover
 npx --no-install ctx analyze
 npx --no-install ctx audit
+npx --no-install ctx go --explain "fix login token expired"
 npx --no-install ctx pack billing-review
 npx --no-install ctx pack --explain "fix login token expired"
 npx --no-install ctx doctor
 ```
+
+`go` 是日常快捷入口：如果项目还没有 `.cortexa`，它会先按模板和编辑器选项初始化；如果已经存在，它会刷新 Cortexa 管理的快照，然后直接返回任务的 Context Packet。
 
 `discover` 会运行内置 project adapters，并输出 `adapters`、`frameworks`、`features`、`packages`、`semanticEntrypoints`、`dependencyGraph` 等语义字段。
 

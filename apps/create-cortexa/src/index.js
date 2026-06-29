@@ -22,10 +22,12 @@ Usage:
   npm create cortexa@latest
   npm create cortexa@latest -- --template frontend --editors codex,cursor
   npm create cortexa@latest -- --yes
+  npm create cortexa@latest -- --yes --task "fix login token expiration"
 
 Options:
   --template <value>  Use auto, minimal, frontend, backend, or monorepo.
   --editors <value>   Configure codex, cursor, all, or a comma-separated selection.
+  --task <value>      Build a Context Packet immediately after setup.
   --yes               Use automatic template detection and the Codex integration.
 `);
   process.exit(0);
@@ -64,7 +66,8 @@ if (!existsSync(cliPath)) {
 }
 
 const automatic = args.includes("--yes") || args.includes("-y");
-const forwarded = args.filter((arg) => arg !== "--yes" && arg !== "-y");
+const task = parseTask(args);
+const forwarded = stripInitializerOnlyArgs(args);
 const hasSetupOptions = forwarded.some((arg) => arg === "--template" || arg.startsWith("--template=") || arg === "--editors" || arg.startsWith("--editors="));
 const setupArgs = hasSetupOptions
   ? ["setup", ...forwarded]
@@ -87,7 +90,20 @@ if (setup.status !== 0) {
   process.exit(setup.status || 1);
 }
 
-console.log("\nCortexa is ready. Use `npx --no-install ctx pack \"<task>\"` to build task context.");
+if (task) {
+  console.log("\nBuilding initial Context Packet...\n");
+  const pack = spawnSync(process.execPath, [cliPath, "pack", "--explain", task], {
+    cwd: root,
+    stdio: "inherit"
+  });
+
+  if (pack.status !== 0) {
+    console.error("\nCortexa is ready, but the initial Context Packet could not be created.");
+    process.exit(pack.status || 1);
+  }
+} else {
+  console.log("\nCortexa is ready. Use `npx --no-install ctx go \"<task>\"` to set up or refresh context and build a Context Packet.");
+}
 
 function commandAvailable(command, baseArgs) {
   const result = spawnSync(command, [...baseArgs, "--version"], {
@@ -97,4 +113,44 @@ function commandAvailable(command, baseArgs) {
   });
 
   return result.status === 0;
+}
+
+function parseTask(values) {
+  for (let index = 0; index < values.length; index += 1) {
+    const value = values[index];
+
+    if (value === "--task") {
+      return values[index + 1] || "";
+    }
+
+    if (value.startsWith("--task=")) {
+      return value.slice(value.indexOf("=") + 1);
+    }
+  }
+
+  return "";
+}
+
+function stripInitializerOnlyArgs(values) {
+  const result = [];
+  for (let index = 0; index < values.length; index += 1) {
+    const value = values[index];
+
+    if (value === "--yes" || value === "-y") {
+      continue;
+    }
+
+    if (value === "--task") {
+      index += 1;
+      continue;
+    }
+
+    if (value.startsWith("--task=")) {
+      continue;
+    }
+
+    result.push(value);
+  }
+
+  return result;
 }
