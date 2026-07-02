@@ -3,7 +3,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { readRuntimeSession, recordContextPacketSession } from "../src/runtime/session-store.js";
+import { readRuntimeSession, readRuntimeSessionPacket, recordContextPacketSession } from "../src/runtime/session-store.js";
 
 test("ctx go runtime store records independent session and cache files", () => {
   const root = mkdtempSync(join(tmpdir(), "cortexa-runtime-store-"));
@@ -41,6 +41,7 @@ test("ctx go runtime store records independent session and cache files", () => {
     assert.deepEqual(cachedPacket, packet);
     assert.equal(readRuntimeSession(root).id, result.session.id);
     assert.equal(readRuntimeSession(root, result.session.id).contextPacketRef.cacheKey, result.session.contextPacketRef.cacheKey);
+    assert.deepEqual(readRuntimeSessionPacket(root, result.session.id), packet);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

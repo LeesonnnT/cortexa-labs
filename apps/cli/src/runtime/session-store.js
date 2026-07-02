@@ -69,6 +69,16 @@ export function readRuntimeSession(root, sessionId, options = {}) {
   return readJson(join(root, sessionRef)) || null;
 }
 
+export function readRuntimeSessionPacket(root, sessionId, options = {}) {
+  const session = readRuntimeSession(root, sessionId, options);
+  const packetRef = session?.contextPacketRef?.valueRef;
+  if (!packetRef) {
+    return null;
+  }
+
+  return readJson(join(root, packetRef)) || null;
+}
+
 export function createRuntimeState(options = {}) {
   const now = options.now || new Date().toISOString();
 

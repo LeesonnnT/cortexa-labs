@@ -6,7 +6,7 @@ import { listEditorIntegrations, setupEditors, teardownEditors } from "../editor
 import { setupProjectKit, setupStarterKit, updateProjectKit } from "../project-kit/index.js";
 import { analyzeWorkspace } from "../reports/analyze.js";
 import { auditWorkspace } from "../reports/audit.js";
-import { readRuntimeSession, readRuntimeState, recordContextPacketSession } from "../runtime/session-store.js";
+import { readRuntimeSession, readRuntimeSessionPacket, readRuntimeState, recordContextPacketSession } from "../runtime/session-store.js";
 import { discoverWorkspace } from "../workspace/discovery.js";
 import { hasFlag, initializeWorkspace, parseEditorSelection, parseTemplateSelection, promptSetupOptions } from "../setup/options.js";
 import { templateRegistry } from "../registries/index.js";
@@ -39,7 +39,7 @@ function createCommands(cwd, args) {
       ctx audit
       ctx pack [--explain] <task>
       ctx go [--explain] [--template auto|minimal|frontend|backend|monorepo] [--editors codex|cursor|all|codex,cursor,...] <task>
-      ctx sessions [--latest] [--id <sessionId>]
+      ctx sessions [--latest] [--id <sessionId>] [--packet]
     
     Commands:
       help      Show this help.
@@ -192,12 +192,18 @@ function createCommands(cwd, args) {
         }
       },
       sessions() {
+        const sessionId = parseOptionValue(args, "--id");
+
+        if (hasFlag(args, "--packet")) {
+          console.log(JSON.stringify(readRuntimeSessionPacket(cwd, sessionId), null, 2));
+          return;
+        }
+
         if (hasFlag(args, "--latest", "--active")) {
           console.log(JSON.stringify(readRuntimeSession(cwd), null, 2));
           return;
         }
 
-        const sessionId = parseOptionValue(args, "--id");
         if (sessionId) {
           console.log(JSON.stringify(readRuntimeSession(cwd, sessionId), null, 2));
           return;
