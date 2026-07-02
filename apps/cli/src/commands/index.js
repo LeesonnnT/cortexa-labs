@@ -6,7 +6,7 @@ import { listEditorIntegrations, setupEditors, teardownEditors } from "../editor
 import { setupProjectKit, setupStarterKit, updateProjectKit } from "../project-kit/index.js";
 import { analyzeWorkspace } from "../reports/analyze.js";
 import { auditWorkspace } from "../reports/audit.js";
-import { recordContextPacketSession } from "../runtime/session-store.js";
+import { readRuntimeState, recordContextPacketSession } from "../runtime/session-store.js";
 import { discoverWorkspace } from "../workspace/discovery.js";
 import { hasFlag, initializeWorkspace, parseEditorSelection, parseTemplateSelection, promptSetupOptions } from "../setup/options.js";
 import { templateRegistry } from "../registries/index.js";
@@ -39,6 +39,7 @@ function createCommands(cwd, args) {
       ctx audit
       ctx pack [--explain] <task>
       ctx go [--explain] [--template auto|minimal|frontend|backend|monorepo] [--editors codex|cursor|all|codex,cursor,...] <task>
+      ctx sessions
     
     Commands:
       help      Show this help.
@@ -53,6 +54,7 @@ function createCommands(cwd, args) {
       audit     Check Cortexa context assets and snapshot freshness.
       pack      Build a minimal context packet. Use --explain to include quality diagnostics.
       go        One-command setup/update and context packet creation for a task.
+      sessions  Show recorded runtime sessions and packet cache refs.
     `);
       },
       version() {
@@ -188,6 +190,9 @@ function createCommands(cwd, args) {
           console.error(error.message);
           process.exitCode = 1;
         }
+      },
+      sessions() {
+        console.log(JSON.stringify(readRuntimeState(cwd), null, 2));
       }
   };
 

@@ -53,6 +53,10 @@ export function recordContextPacketSession(root, task, packet, options = {}) {
   };
 }
 
+export function readRuntimeState(root, options = {}) {
+  return normalizeRuntimeState(readJson(join(root, ".cortexa", "runtime", "state.json")), root, options.now || new Date().toISOString());
+}
+
 export function createRuntimeState(options = {}) {
   const now = options.now || new Date().toISOString();
 

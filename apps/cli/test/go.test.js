@@ -48,6 +48,15 @@ test("ctx go initializes missing Cortexa assets and prints a Context Packet", ()
     assert.equal(session.schema, "cortexa.runtime-session");
     assert.equal(session.task, "update settings page");
     assert.deepEqual(cachedPacket.requiredFiles, packet.requiredFiles);
+
+    const sessionsResult = spawnSync(process.execPath, [cli, "sessions"], {
+      cwd: root,
+      encoding: "utf8"
+    });
+    assert.equal(sessionsResult.status, 0, sessionsResult.stderr || sessionsResult.stdout);
+    const sessionsState = JSON.parse(sessionsResult.stdout);
+    assert.equal(sessionsState.activeSessionId, session.id);
+    assert.equal(sessionsState.cache.entries[0].valueRef, session.contextPacketRef.valueRef);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
