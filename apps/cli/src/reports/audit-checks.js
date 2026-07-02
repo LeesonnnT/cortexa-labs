@@ -8,6 +8,7 @@ export function createAuditReport(root, discovery) {
     ...checkCoreAssets(root),
     ...checkManifest(root, manifest),
     ...checkGeneratedSnapshots(root, discovery),
+    ...checkRuntimeAssets(root),
     ...checkProjectAssets(root, manifest)
   ];
   const summary = summarizeChecks(checks);
@@ -176,6 +177,68 @@ function checkProjectAssets(root, manifest) {
   return checks;
 }
 
+function checkRuntimeAssets(root) {
+  const statePath = ".cortexa/runtime/state.json";
+  const state = readJson(join(root, statePath));
+  if (!state) {
+    return [
+      {
+        id: "runtime.state",
+        status: "warn",
+        severity: "warn",
+        title: "runtime state exists",
+        message: "runtime state has not been created yet.",
+        path: statePath,
+        suggestion: "Run ctx go for a real task to create runtime session state."
+      }
+    ];
+  }
+
+  const sessions = Array.isArray(state.sessions) ? state.sessions : [];
+  const cacheEntries = Array.isArray(state.cache?.entries) ? state.cache.entries : [];
+  const missingSessions = sessions.map((session) => session.sessionRef || `.cortexa/runtime/sessions/${session.id}.json`).filter((path) => !existsSync(join(root, path)));
+  const missingCacheEntries = cacheEntries.map((entry) => entry.valueRef).filter((path) => path && !existsSync(join(root, path)));
+
+  return [
+    {
+      id: "runtime.state.schema",
+      status: state.schema === "cortexa.runtime-state" && state.schemaVersion === 1 ? "pass" : "warn",
+      severity: state.schema === "cortexa.runtime-state" && state.schemaVersion === 1 ? "info" : "warn",
+      title: "runtime state schema",
+      message:
+        state.schema === "cortexa.runtime-state" && state.schemaVersion === 1
+          ? "runtime state uses schema version 1."
+          : "runtime state schema is missing or unsupported.",
+      path: statePath,
+      suggestion: state.schema === "cortexa.runtime-state" && state.schemaVersion === 1 ? null : "Run ctx go again after upgrading the CLI."
+    },
+    {
+      id: "runtime.sessions.refs",
+      status: missingSessions.length === 0 ? "pass" : "warn",
+      severity: missingSessions.length === 0 ? "info" : "warn",
+      title: "runtime session refs",
+      message: missingSessions.length === 0 ? "runtime session references are readable." : "runtime state references missing session files.",
+      path: statePath,
+      details: {
+        missing: missingSessions.slice(0, 12)
+      },
+      suggestion: missingSessions.length === 0 ? null : "Run ctx go to create a fresh session, or remove stale runtime state entries."
+    },
+    {
+      id: "runtime.cache.refs",
+      status: missingCacheEntries.length === 0 ? "pass" : "warn",
+      severity: missingCacheEntries.length === 0 ? "info" : "warn",
+      title: "runtime cache refs",
+      message: missingCacheEntries.length === 0 ? "runtime cache references are readable." : "runtime state references missing cache files.",
+      path: statePath,
+      details: {
+        missing: missingCacheEntries.slice(0, 12)
+      },
+      suggestion: missingCacheEntries.length === 0 ? null : "Run ctx go to regenerate Context Packet cache entries."
+    }
+  ];
+}
+
 function fileCheck(root, path, id, missingSeverity, reason, suggestion) {
   const exists = existsSync(join(root, path));
   return {
@@ -248,6 +311,10 @@ function recommendAuditActions(summary, checks) {
 
   if (ids.has("core.ownership")) {
     actions.push("Fill .cortexa/ownership/ownership-map.json for packages or features that often change.");
+  }
+
+  if ([...ids].some((id) => id.startsWith("runtime."))) {
+    actions.push("Run ctx go for a concrete task to refresh runtime sessions and Context Packet cache entries.");
   }
 
   if (summary.status === "pass") {

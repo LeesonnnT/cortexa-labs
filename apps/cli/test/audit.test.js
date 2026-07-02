@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { auditWorkspace } from "../src/reports/audit.js";
+import { recordContextPacketSession } from "../src/runtime/session-store.js";
 import { setupProjectKit } from "../src/project-kit/index.js";
 import { initializeWorkspace, resolveTemplate } from "../src/setup/options.js";
 import { discoverWorkspace } from "../src/workspace/discovery.js";
@@ -144,6 +145,41 @@ test("ctx audit warns when context manifest lifecycle metadata is corrupted", ()
     assert.equal(versionCheck?.status, "warn");
     assert.equal(lifecycleCheck?.status, "warn");
     assert.ok(result.report.recommendations.some((action) => action.includes("ctx update")));
+  } finally {
+    removeFixture(root);
+  }
+});
+
+test("ctx audit warns when runtime cache references are stale", () => {
+  const root = createFixture("runtime-stale");
+  try {
+    writeProjectFile(root, "package.json", JSON.stringify({ name: "audit-runtime-stale", dependencies: { react: "^18.0.0" } }));
+    writeProjectFile(root, "src/App.tsx", "export function App() { return null; }\n");
+
+    const discovery = discoverWorkspace(root);
+    initializeWorkspace(root, "frontend");
+    setupProjectKit(root, resolveTemplate("frontend", discovery));
+    const packet = {
+      schema: "cortexa.context-packet",
+      schemaVersion: 1,
+      task: "update app",
+      generatedAt: "2026-07-02T00:00:00.000Z",
+      qualityGate: { status: "pass" },
+      requiredFiles: [{ path: "src/App.tsx" }],
+      optionalFiles: []
+    };
+    const runtime = recordContextPacketSession(root, "update app", packet, {
+      now: "2026-07-02T00:00:01.000Z"
+    });
+    rmSync(join(root, runtime.paths.cache), { force: true });
+
+    const result = auditWorkspace(root);
+    const cacheCheck = result.report.checks.find((check) => check.id === "runtime.cache.refs");
+
+    assert.equal(result.report.status, "warn");
+    assert.equal(cacheCheck?.status, "warn");
+    assert.deepEqual(cacheCheck?.details.missing, [runtime.paths.cache]);
+    assert.ok(result.report.recommendations.some((action) => action.includes("ctx go")));
   } finally {
     removeFixture(root);
   }
