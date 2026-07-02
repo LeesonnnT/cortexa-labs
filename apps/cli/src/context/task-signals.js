@@ -52,7 +52,7 @@ export function expandTaskTerms(task) {
     [["login", "signin", "auth", "token", "登录", "鉴权", "认证"], ["login", "signin", "auth", "token", "user", "permission"]],
     [["过期", "失效", "timeout", "expired", "expire", "401"], ["expire", "expired", "timeout", "401", "interceptor", "request", "auth"]],
     [["页面", "视图", "page", "view"], ["page", "pages", "view", "views", "component"]],
-    [["接口", "请求", "api", "request", "response"], ["api", "request", "service", "http", "client", "response"]],
+    [["接口", "请求", "api", "request", "response", "controller", "route", "server"], ["api", "request", "service", "http", "client", "response", "controller", "route", "server"]],
     [["路由", "跳转", "router", "route", "redirect"], ["router", "route", "routes", "permission", "redirect"]],
     [["状态", "store", "缓存", "state"], ["store", "state", "cache", "pinia", "vuex", "redux"]],
     [["测试", "单测", "test", "spec"], ["test", "spec", "mock"]]
@@ -86,6 +86,10 @@ export function inferSemanticRoles(task, aliases) {
     add("request");
   }
 
+  if (includesAny(value, ["server", "controller", "handler", "express", "nest", "服务端", "控制器"])) {
+    add("server");
+  }
+
   if (includesAny(value, ["router", "route", "redirect", "路由", "跳转"])) {
     add("routing");
   }
@@ -110,6 +114,10 @@ export function classifySourceFile(path) {
 
   if (value.includes("router") || value.includes("route") || value.includes("permission")) {
     return { weight: 9, roles: ["routing", "auth"], keywords: ["router", "route", "redirect", "permission"], reason: "routing or auth entrypoint can control page access" };
+  }
+
+  if (value.includes("controller") || value.includes("handler") || value.includes("server/") || value.includes("routes/")) {
+    return { weight: 10, roles: ["server", "request"], keywords: ["server", "controller", "handler", "route"], reason: "server API handler can directly affect request behavior" };
   }
 
   if (value.includes("request") || value.includes("api") || value.includes("service") || value.includes("http")) {

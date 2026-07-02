@@ -22,6 +22,10 @@ export function inferRiskBoundaries(task, intent, workspace, requiredFiles) {
     add("request-interceptor", "Global request interceptor changes can affect all API calls and error handling.", "Check 401, timeout, token refresh, retry, and redirect behavior together.");
   }
 
+  if (requiredFiles.some((file) => /controller|handler|routes|server/i.test(file.path)) || includesAny(value, ["server", "controller", "handler", "express", "nest"])) {
+    add("server-api", "Server API handler changes can affect request validation, response shape, and error contracts.", "Verify route method, status code, validation, and response schema before widening scope.");
+  }
+
   if (requiredFiles.some((file) => /router|route|permission/i.test(file.path)) || includesAny(value, ["router", "route", "redirect", "permission"])) {
     add("routing", "Route guards or redirects can create loops or block public pages.", "Verify unauthenticated, authenticated, and expired-token navigation paths.");
   }

@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
-import { createContextPacket } from "../src/context/packet.js";
+import { CONTEXT_PACKET_V1_REQUIRED_FIELDS, createContextPacket, validateContextPacketV1 } from "../src/context/packet.js";
 
 test("ctx pack classifies Vue auth bugfixes and exposes file evidence", () => {
   const root = createFixture("vue-auth");
@@ -39,6 +39,14 @@ test("ctx pack exposes a versioned Context Packet contract", () => {
 
     assert.equal(packet.schema, "cortexa.context-packet");
     assert.equal(packet.schemaVersion, 1);
+    assert.deepEqual(validateContextPacketV1(packet), {
+      valid: true,
+      schema: "cortexa.context-packet",
+      schemaVersion: 1,
+      requiredFields: CONTEXT_PACKET_V1_REQUIRED_FIELDS,
+      missingFields: [],
+      errors: []
+    });
     assert.equal(packet.task, "update settings page");
     assert.ok(packet.generatedAt);
     assert.ok(packet.qualityGate);
@@ -48,6 +56,19 @@ test("ctx pack exposes a versioned Context Packet contract", () => {
   } finally {
     removeFixture(root);
   }
+});
+
+test("ctx pack validates missing Context Packet contract fields", () => {
+  const result = validateContextPacketV1({
+    schema: "cortexa.context-packet",
+    schemaVersion: 1,
+    task: "incomplete packet"
+  });
+
+  assert.equal(result.valid, false);
+  assert.ok(result.missingFields.includes("workspace"));
+  assert.ok(result.missingFields.includes("requiredFiles"));
+  assert.ok(result.errors.some((error) => error.includes("missing required fields")));
 });
 
 test("ctx pack handles readable Chinese auth tasks without mojibake keywords", () => {
@@ -128,6 +149,30 @@ test("ctx pack anchors frontend API request tasks to api feature roots", () => {
     assert.ok(packet.features.some((feature) => feature.path === "src/api" && feature.kind === "api-feature"));
     assert.ok(packet.scope.includes("src/api"));
     assert.ok(packet.requiredFiles.some((file) => file.path === "src/api/request.ts"));
+  } finally {
+    removeFixture(root);
+  }
+});
+
+test("ctx pack anchors Express API controller tasks to backend handlers", () => {
+  const root = createFixture("express-api-controller");
+  try {
+    writeProjectFile(root, "package.json", JSON.stringify({ name: "express-api-controller", dependencies: { express: "^4.18.0" } }));
+    writeProjectFile(root, "src/server/index.ts", "import { usersRouter } from './routes/users';\nexport function start() { return usersRouter; }\n");
+    writeProjectFile(root, "src/routes/users.ts", "import { getUser } from '../controllers/usersController';\nexport const usersRouter = { getUser };\n");
+    writeProjectFile(root, "src/controllers/usersController.ts", "export function getUser() { return { id: 1, name: 'Ada' }; }\n");
+    writeProjectFile(root, "src/services/usersService.ts", "export function loadUser() { return { id: 1 }; }\n");
+
+    const packet = createContextPacket(root, "fix users api controller response", { explain: true });
+
+    assert.equal(packet.intent.type, "bugfix");
+    assert.ok(packet.workspace.frameworks.includes("express"));
+    assert.ok(packet.entrypoints.some((entrypoint) => entrypoint.path === "src/controllers" && entrypoint.kind === "server-controller"));
+    assert.ok(packet.features.some((feature) => feature.path === "src/controllers" && feature.kind === "api-feature"));
+    assert.ok(packet.requiredFiles.some((file) => file.path === "src/controllers/usersController.ts"));
+    assert.ok(packet.requiredFiles.some((file) => file.sources.includes("semantic-role")));
+    assert.ok(packet.riskBoundaries.some((risk) => risk.area === "server-api"));
+    assert.equal(packet.qualityGate.status, "pass");
   } finally {
     removeFixture(root);
   }
@@ -269,6 +314,8 @@ test("ctx pack marks weakly anchored tasks for review", () => {
 
     assert.notEqual(packet.qualityGate.status, "pass");
     assert.ok(packet.contextQuality.warnings.some((warning) => warning.type === "weak-anchor" || warning.type === "empty-required-context"));
+    assert.ok(packet.contextQuality.nextActions.some((action) => action.includes("Try one of these discovered anchors")));
+    assert.ok(packet.contextQuality.refinementHints.suggestedAnchors.includes("src/App.tsx"));
     assert.equal(packet.phaseTransition.nextPhase, "refine-task");
   } finally {
     removeFixture(root);

@@ -7,6 +7,23 @@ import { classifyTaskIntent } from "./task-signals.js";
 
 export const CONTEXT_PACKET_SCHEMA = "cortexa.context-packet";
 export const CONTEXT_PACKET_SCHEMA_VERSION = 1;
+export const CONTEXT_PACKET_V1_REQUIRED_FIELDS = [
+  "schema",
+  "schemaVersion",
+  "task",
+  "intent",
+  "workspace",
+  "scope",
+  "requiredFiles",
+  "optionalFiles",
+  "readingOrder",
+  "riskBoundaries",
+  "qualityGate",
+  "readiness",
+  "handoff",
+  "phaseTransition",
+  "generatedAt"
+];
 
 export function createContextPacket(root, task, options = {}) {
   const workspace = discoverWorkspace(root);
@@ -21,7 +38,7 @@ export function createContextPacket(root, task, options = {}) {
   const handoff = createHandoffBundle(task, scope, specs, skills, agents, multiAgent, contextCompilation, readiness);
   const phaseTransition = createPhaseTransition(readiness, multiAgent);
 
-  return {
+  const packet = {
     schema: CONTEXT_PACKET_SCHEMA,
     schemaVersion: CONTEXT_PACKET_SCHEMA_VERSION,
     task,
@@ -59,5 +76,33 @@ export function createContextPacket(root, task, options = {}) {
     phaseTransition,
     ...(options.explain ? { contextQuality: contextCompilation.contextQuality } : {}),
     generatedAt: new Date().toISOString()
+  };
+
+  return packet;
+}
+
+export function validateContextPacketV1(packet) {
+  const missingFields = CONTEXT_PACKET_V1_REQUIRED_FIELDS.filter((field) => !(field in (packet || {})));
+  const errors = [];
+
+  if (packet?.schema !== CONTEXT_PACKET_SCHEMA) {
+    errors.push(`schema must be ${CONTEXT_PACKET_SCHEMA}`);
+  }
+
+  if (packet?.schemaVersion !== CONTEXT_PACKET_SCHEMA_VERSION) {
+    errors.push(`schemaVersion must be ${CONTEXT_PACKET_SCHEMA_VERSION}`);
+  }
+
+  if (missingFields.length > 0) {
+    errors.push(`missing required fields: ${missingFields.join(", ")}`);
+  }
+
+  return {
+    valid: errors.length === 0,
+    schema: CONTEXT_PACKET_SCHEMA,
+    schemaVersion: CONTEXT_PACKET_SCHEMA_VERSION,
+    requiredFields: CONTEXT_PACKET_V1_REQUIRED_FIELDS,
+    missingFields,
+    errors
   };
 }

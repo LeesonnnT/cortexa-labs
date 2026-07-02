@@ -10,7 +10,8 @@ const ignoredDirectories = new Set([
   "coverage",
   "dist",
   "node_modules",
-  "out"
+  "out",
+  "tmp"
 ]);
 
 const sourceExtensions = new Set([".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".vue"]);
@@ -35,7 +36,9 @@ export function discoverEntrypoints(root, packageJson, frameworks) {
     "server/index.ts",
     "server/index.js",
     "server/api/index.ts",
-    "server/api/index.js"
+    "server/api/index.js",
+    "src/server/index.ts",
+    "src/server/index.js"
   ];
 
   for (const file of candidateFiles) {
@@ -44,7 +47,28 @@ export function discoverEntrypoints(root, packageJson, frameworks) {
     }
   }
 
-  for (const directory of ["app", "src/app", "app/api", "src/app/api", "pages", "src/pages", "src/router", "src/routes", "routes", "server/api", "plugins", "middleware", "composables", "layouts"]) {
+  for (const directory of [
+    "app",
+    "src/app",
+    "app/api",
+    "src/app/api",
+    "pages",
+    "src/pages",
+    "src/router",
+    "src/routes",
+    "routes",
+    "src/controllers",
+    "src/server",
+    "src/server/routes",
+    "src/server/controllers",
+    "server/routes",
+    "server/controllers",
+    "server/api",
+    "plugins",
+    "middleware",
+    "composables",
+    "layouts"
+  ]) {
     if (existsSync(join(root, directory))) {
       entrypoints.push(createEntrypoint(directory, classifyEntrypoint(directory, frameworks)));
     }
@@ -108,6 +132,14 @@ function classifyEntrypoint(path, frameworks) {
 
   if (path === "server/api" || path.includes("server/api")) {
     return "nuxt-server-api";
+  }
+
+  if (path.includes("controllers")) {
+    return "server-controller";
+  }
+
+  if (path.includes("routes")) {
+    return "server-route";
   }
 
   if (path === "plugins" || path.includes("/plugins")) {
@@ -193,8 +225,19 @@ function discoverFeatures(root, sourceFiles) {
     "src/pages",
     "api",
     "src/api",
+    "routes",
+    "src/routes",
+    "controllers",
+    "src/controllers",
+    "server/routes",
+    "server/controllers",
+    "src/server",
+    "src/server/routes",
+    "src/server/controllers",
     "services",
     "src/services",
+    "server/services",
+    "src/server/services",
     "hooks",
     "src/hooks",
     "server/api",
@@ -305,6 +348,14 @@ function classifyFeature(featureRoot, featurePath = featureRoot) {
 
   if (featurePath.includes("server/api") || featureRoot.includes("server/api")) {
     return "api-feature";
+  }
+
+  if (featureRoot.includes("routes") || featureRoot.includes("controllers")) {
+    return "api-feature";
+  }
+
+  if (featureRoot === "src/server" || featureRoot === "server") {
+    return "server-feature";
   }
 
   if (featurePath.includes("/api") || featureRoot === "api" || featureRoot === "src/api") {

@@ -73,7 +73,8 @@ export function explainContextQuality(context) {
     },
     missedSignals,
     warnings,
-    nextActions: recommendContextActions(confidence, resolvedContext, requiredFiles, optionalFiles, missedSignals, tokenBudget)
+    nextActions: recommendContextActions(confidence, workspace, resolvedContext, requiredFiles, optionalFiles, missedSignals, tokenBudget),
+    refinementHints: createRefinementHints(workspace, resolvedContext, missedSignals)
   };
 }
 
@@ -186,7 +187,8 @@ function sourceFileMatchesRole(path, role) {
     routing: /router|route|routes|permission/,
     view: /views|pages|component|app/,
     command: /\/commands\/|command|src\/index\.js$/,
-    test: /test|spec/
+    test: /test|spec/,
+    server: /server|controller|handler|routes/
   };
 
   return Boolean(patterns[role]?.test(value));
@@ -283,11 +285,15 @@ function summarizeContextQuality(confidence, requiredFiles, missedSignals, warni
   return "Context is usable. Keep validation small and evidence-backed.";
 }
 
-function recommendContextActions(confidence, resolvedContext, requiredFiles, optionalFiles, missedSignals, tokenBudget) {
+function recommendContextActions(confidence, workspace, resolvedContext, requiredFiles, optionalFiles, missedSignals, tokenBudget) {
   const actions = [];
 
   if (resolvedContext.resolver.anchors.fallbackToWorkspace) {
     actions.push("Add a specific package, feature, page, API, or file name to the task.");
+    const anchors = suggestRefinementAnchors(workspace).slice(0, 4);
+    if (anchors.length > 0) {
+      actions.push(`Try one of these discovered anchors: ${anchors.join(", ")}.`);
+    }
   }
 
   if (requiredFiles.length === 0) {
@@ -307,4 +313,19 @@ function recommendContextActions(confidence, resolvedContext, requiredFiles, opt
   }
 
   return actions.length > 0 ? actions : ["Follow readingOrder and gather more evidence before widening the edit scope."];
+}
+
+function createRefinementHints(workspace, resolvedContext, missedSignals) {
+  return {
+    suggestedAnchors: resolvedContext.resolver.anchors.fallbackToWorkspace ? suggestRefinementAnchors(workspace).slice(0, 8) : [],
+    missedSignalAnchors: missedSignals.flatMap((signal) => signal.candidateFiles || []).slice(0, 8)
+  };
+}
+
+function suggestRefinementAnchors(workspace) {
+  return [
+    ...(workspace.features || []).map((feature) => feature.path),
+    ...(workspace.semanticEntrypoints || []).map((entrypoint) => entrypoint.path),
+    ...(workspace.packages || []).map((pkg) => pkg.path)
+  ].filter(Boolean);
 }

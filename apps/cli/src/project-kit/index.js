@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { discoverWorkspace } from "../workspace/discovery.js";
-import { createOwnershipMap } from "../../../../workspace/ownership/src/index.js";
+import { createOwnershipMap } from "../workspace/ownership.js";
 import { readJson, writeIfMissing, writeJson } from "../core/fs.js";
 import { resolveTemplate } from "../setup/options.js";
 import {

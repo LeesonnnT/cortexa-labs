@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync, mkdirSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -10,15 +10,18 @@ import { fileURLToPath } from "node:url";
 const root = fileURLToPath(new URL("..", import.meta.url));
 const cliPackage = readJson(join(root, "apps", "cli", "package.json"));
 const createPackage = readJson(join(root, "apps", "create-cortexa", "package.json"));
+const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
 
 const checks = [
   ["root package metadata", checkRootPackage],
   ["cli package metadata", checkCliPackage],
   ["create-cortexa package metadata", checkCreatePackage],
   ["documentation files", checkDocumentation],
+  ["package source boundaries", checkPackageSourceBoundaries],
   ["cli smoke test", checkCliSmoke],
   ["initializer smoke test", checkInitializerSmoke],
-  ["node test suite", checkNodeTests]
+  ["node test suite", checkNodeTests],
+  ["package dry runs", checkPackageDryRuns]
 ];
 
 for (const [name, check] of checks) {
@@ -62,14 +65,35 @@ function checkCreatePackage() {
 }
 
 function checkDocumentation() {
-  for (const path of ["README.md", "apps/cli/README.md", "apps/create-cortexa/README.md", "examples/minimal/README.md", "examples/minimal/package.json"]) {
+  const requiredPaths = [
+    "README.md",
+    "apps/cli/README.md",
+    "apps/create-cortexa/README.md",
+    "apps/dashboard/README.md",
+    "docs/context-engineering-cli-technical-spec.md",
+    "docs/coding-standards.md",
+    "examples/minimal/README.md",
+    "examples/minimal/package.json"
+  ];
+
+  for (const path of requiredPaths) {
     assert.ok(existsSync(join(root, path)), `${path} must exist`);
   }
 
-  const readme = readFileSync(join(root, "README.md"), "utf8");
+  for (const path of requiredPaths.filter((path) => path.endsWith(".md"))) {
+    assertReadableMarkdown(path);
+  }
+
+  const readme = readText(join(root, "README.md"));
   assert.match(readme, /npm create cortexa@latest/);
   assert.match(readme, /ctx go --explain/);
-  assert.doesNotMatch(readme, /\uFFFD/);
+}
+
+function checkPackageSourceBoundaries() {
+  for (const file of listFiles(join(root, "apps", "cli", "src")).filter((path) => path.endsWith(".js"))) {
+    const content = readText(file);
+    assert.doesNotMatch(content, /from\s+["'](?:\.\.\/){4,}/, `${file} must not import source files outside the published CLI package`);
+  }
 }
 
 function checkCliSmoke() {
@@ -84,9 +108,22 @@ function checkInitializerSmoke() {
 }
 
 function checkNodeTests() {
-  run(process.execPath, ["--test", join(root, "apps", "cli", "test"), join(root, "apps", "create-cortexa", "test", "initializer.test.js"), join(root, "workspace", "ownership", "src", "index.test.js")], root);
+  run(process.execPath, [
+    "--test",
+    join(root, "apps", "cli", "test"),
+    join(root, "apps", "create-cortexa", "test", "initializer.test.js"),
+    join(root, "workspace", "graph", "src", "index.test.js"),
+    join(root, "workspace", "resolver", "src", "index.test.js"),
+    join(root, "workspace", "runtime", "src", "index.test.js"),
+    join(root, "workspace", "ownership", "src", "index.test.js")
+  ], root);
   run(process.execPath, ["--test", join(root, "examples", "minimal")], root);
   runExampleLifecycle();
+}
+
+function checkPackageDryRuns() {
+  run(npmCommand, ["pack", "--workspace", "apps/cli", "--dry-run"], root);
+  run(npmCommand, ["pack", "--workspace", "apps/create-cortexa", "--dry-run"], root);
 }
 
 function runExampleLifecycle() {
@@ -113,7 +150,8 @@ function writeProjectFile(projectRoot, path, content) {
 function run(command, args, cwd, options = {}) {
   const result = spawnSync(command, args, {
     cwd,
-    encoding: "utf8"
+    encoding: "utf8",
+    shell: options.shell || (process.platform === "win32" && command === npmCommand)
   });
 
   if (!options.allowNonZero && result.status !== 0) {
@@ -128,5 +166,34 @@ function run(command, args, cwd, options = {}) {
 }
 
 function readJson(path) {
-  return JSON.parse(readFileSync(path, "utf8").replace(/^\uFEFF/, ""));
+  return JSON.parse(readText(path).replace(/^\uFEFF/, ""));
+}
+
+function readText(path) {
+  return readFileSync(path, "utf8");
+}
+
+function listFiles(directory) {
+  const files = [];
+
+  for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    const path = join(directory, entry.name);
+
+    if (entry.isDirectory()) {
+      files.push(...listFiles(path));
+      continue;
+    }
+
+    if (entry.isFile() && statSync(path).isFile()) {
+      files.push(path);
+    }
+  }
+
+  return files;
+}
+
+function assertReadableMarkdown(path) {
+  const content = readText(join(root, path));
+  assert.doesNotMatch(content, /\uFFFD/, `${path} must not contain replacement characters`);
+  assert.doesNotMatch(content, /(?:鎶|鐨|鍙|鏄|涓|乣|鈹|锛|銆|闈|瀹|浠|€\?)/, `${path} looks like mojibake; save it as readable UTF-8`);
 }

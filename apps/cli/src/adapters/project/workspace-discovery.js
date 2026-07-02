@@ -11,7 +11,8 @@ const ignoredDirectories = new Set([
   "coverage",
   "dist",
   "node_modules",
-  "out"
+  "out",
+  "tmp"
 ]);
 
 const sourceExtensions = new Set([".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".vue"]);
@@ -162,6 +163,10 @@ export function detectFrameworks(root, packageJson, sourceFiles) {
 
   if (deps["@nestjs/core"]) {
     frameworks.push("nest");
+  }
+
+  if (deps.express) {
+    frameworks.push("express");
   }
 
   if (existsSync(join(root, "tsconfig.json")) || sourceFiles.some((file) => file.endsWith(".ts") || file.endsWith(".tsx"))) {

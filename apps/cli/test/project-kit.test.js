@@ -288,6 +288,24 @@ test("workspace discovery recognizes frontend data layer feature roots", () => {
   }
 });
 
+test("workspace discovery ignores temporary workspace output", () => {
+  const root = createFixture("ignore-temp-output");
+  try {
+    writeProjectFile(root, "package.json", JSON.stringify({ name: "ignore-temp-output", dependencies: { react: "^18.0.0" } }));
+    writeProjectFile(root, "src/App.tsx", "export function App() { return null; }\n");
+    writeProjectFile(root, "tmp/generated-preview/src/Leaked.tsx", "export function Leaked() { return null; }\n");
+
+    const discovery = discoverWorkspace(root);
+
+    assert.ok(discovery.sourceGraph.nodes.some((node) => node.id === "src/App.tsx"));
+    assert.ok(!discovery.sourceGraph.nodes.some((node) => node.id.includes("tmp/generated-preview")));
+    assert.equal(discovery.sourceSummary.filesScanned, 1);
+    assert.equal(discovery.sourceSummary.extensions[".tsx"], 1);
+  } finally {
+    removeFixture(root);
+  }
+});
+
 function createFixture(name) {
   return mkdtempSync(join(tmpdir(), `cortexa-${name}-`));
 }

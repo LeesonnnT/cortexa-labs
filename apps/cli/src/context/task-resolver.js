@@ -205,7 +205,7 @@ function isInsideSemanticBoundary(file, anchors, role) {
     return true;
   }
 
-  const crossCuttingRoles = new Set(["auth", "request", "routing", "state"]);
+  const crossCuttingRoles = new Set(["auth", "request", "routing", "state", "server"]);
   return role.roles.some((candidate) => anchors.roles.includes(candidate) && crossCuttingRoles.has(candidate));
 }
 
