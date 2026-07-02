@@ -81,19 +81,19 @@ function createQualityGate(confidence, requiredFiles, missedSignals, warnings, t
   const reasons = [];
 
   if (requiredFiles.length === 0) {
-    reasons.push("没有选出稳定的 requiredFiles。");
+    reasons.push("No stable required files were selected.");
   }
 
   if (missedSignals.length > 0) {
-    reasons.push(`存在 ${missedSignals.length} 个未覆盖的语义信号。`);
+    reasons.push(`${missedSignals.length} semantic signal(s) are not covered by selected files.`);
   }
 
   if (warnings.length > 0) {
-    reasons.push(`${warnings.length} 个质量警告需要复核。`);
+    reasons.push(`${warnings.length} context quality warning(s) need review.`);
   }
 
   if (["large", "too-large"].includes(tokenBudget.level)) {
-    reasons.push(`token 预算偏大：${tokenBudget.level}。`);
+    reasons.push(`Token budget is high: ${tokenBudget.level}.`);
   }
 
   const status =
@@ -105,13 +105,13 @@ function createQualityGate(confidence, requiredFiles, missedSignals, warnings, t
 
   return {
     status,
-    reasons: reasons.length > 0 ? reasons : ["上下文质量满足直接执行。"],
+    reasons: reasons.length > 0 ? reasons : ["Context quality is sufficient for direct execution."],
     recommendation:
       status === "pass"
-        ? "可以按 readingOrder 执行。"
+        ? "Proceed with the readingOrder."
         : status === "review"
-          ? "建议先查看 warnings 和 missedSignals，再决定是否扩大上下文。"
-          : "先收窄任务或补充更明确的上下文锚点，再重新 pack。"
+          ? "Review warnings and missedSignals before expanding or executing the task."
+          : "Narrow the task or add clearer anchors, then generate a new Context Packet."
   };
 }
 
@@ -169,7 +169,7 @@ function inferMissedSignals(workspace, selectedFiles, expectedRoles) {
 
     missed.push({
       signal: role,
-      reason: `任务暗示 ${role} 相关上下文，但 selected files 未包含对应语义文件。`,
+      reason: `The task implies ${role} context, but selected files do not include matching semantic files.`,
       candidateFiles: available.slice(0, 5)
     });
   }
@@ -198,35 +198,35 @@ function inferContextWarnings(resolvedContext, requiredFiles, optionalFiles, tok
   if (resolvedContext.resolver.anchors.fallbackToWorkspace) {
     warnings.push({
       type: "weak-anchor",
-      message: "任务没有命中强 package、feature 或 entrypoint anchor，resolver 已回退到 workspace 级搜索。"
+      message: "The task did not match a strong package, feature, or entrypoint anchor, so the resolver fell back to workspace-level search."
     });
   }
 
   if (requiredFiles.length === 0) {
     warnings.push({
       type: "empty-required-context",
-      message: "没有选出 requiredFiles，执行前需要人工先收窄任务或补充项目约定。"
+      message: "No requiredFiles were selected. Narrow the task or add project-specific anchors before execution."
     });
   }
 
   if (optionalFiles.length > requiredFiles.length * 2 && optionalFiles.length >= 6) {
     warnings.push({
       type: "broad-optional-context",
-      message: "optionalFiles 明显多于 requiredFiles，任务可能仍然偏宽。"
+      message: "optionalFiles significantly outnumber requiredFiles, which may indicate the task is still too broad."
     });
   }
 
   if (missedSignals.length > 0) {
     warnings.push({
       type: "missed-semantic-signal",
-      message: "任务存在未进入 selected files 的语义信号，建议检查 missedSignals。"
+      message: "The task includes semantic signals that are not represented in selected files. Review missedSignals."
     });
   }
 
   if (["large", "too-large"].includes(tokenBudget.level)) {
     warnings.push({
       type: "large-context",
-      message: "当前上下文预算偏大，建议拆分任务或使用更明确的模块名。"
+      message: "The current context budget is high. Split the task or use a more specific module name."
     });
   }
 
@@ -265,46 +265,46 @@ function estimateContextConfidence(intent, resolvedContext, requiredFiles, misse
 
 function summarizeContextQuality(confidence, requiredFiles, missedSignals, warnings) {
   if (requiredFiles.length === 0) {
-    return "未能选出稳定的必读文件，需要先收窄任务或补充项目上下文。";
+    return "No stable required files were selected. Narrow the task or add project-specific context.";
   }
 
   if (missedSignals.length > 0) {
-    return "上下文基本可用，但存在未覆盖的语义信号，执行前建议人工复核 missedSignals。";
+    return "Context is usable, but some semantic signals are not covered. Review missedSignals before execution.";
   }
 
   if (warnings.length > 0) {
-    return "上下文可用但置信度一般，建议先查看 warnings 并确认 scope 是否过宽。";
+    return "Context is usable with moderate confidence. Review warnings and confirm the scope is not too broad.";
   }
 
   if (confidence >= 0.75) {
-    return "上下文选择较稳定，可以按 readingOrder 执行并按需扩展 optionalFiles。";
+    return "Context selection is stable. Follow readingOrder and expand optionalFiles only as needed.";
   }
 
-  return "上下文可用，建议保持小步验证。";
+  return "Context is usable. Keep validation small and evidence-backed.";
 }
 
 function recommendContextActions(confidence, resolvedContext, requiredFiles, optionalFiles, missedSignals, tokenBudget) {
   const actions = [];
 
   if (resolvedContext.resolver.anchors.fallbackToWorkspace) {
-    actions.push("在任务中加入更具体的 package、feature、页面、接口或文件名。");
+    actions.push("Add a specific package, feature, page, API, or file name to the task.");
   }
 
   if (requiredFiles.length === 0) {
-    actions.push("先运行 ctx discover 查看 semanticEntrypoints，再用更明确的任务重新 pack。");
+    actions.push("Run ctx discover to inspect semanticEntrypoints, then generate a new packet with a more specific task.");
   }
 
   if (missedSignals.length > 0) {
-    actions.push("从 missedSignals.candidateFiles 中挑选确实相关的文件补读。");
+    actions.push("Review missedSignals.candidateFiles and add confirmed relevant files to the reading set.");
   }
 
   if (optionalFiles.length > 0 && confidence < 0.75) {
-    actions.push("按 optionalFiles 的 score 顺序逐步扩展，不要一次性读取全部候选。");
+    actions.push("Expand optionalFiles gradually by score instead of reading every candidate at once.");
   }
 
   if (["large", "too-large"].includes(tokenBudget.level)) {
-    actions.push("把任务拆成单一模块或单一行为，再分别生成 Context Packet。");
+    actions.push("Split the task into a single module or behavior before generating another Context Packet.");
   }
 
-  return actions.length > 0 ? actions : ["按 readingOrder 执行，并在扩大修改范围前补充证据。"];
+  return actions.length > 0 ? actions : ["Follow readingOrder and gather more evidence before widening the edit scope."];
 }

@@ -1,9 +1,9 @@
-import { existsSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
-import { writeFileSync, mkdirSync } from "node:fs";
-import { discoverWorkspace } from "../workspace/discovery.js";
 import { writeIfMissing, writeJson } from "../core/fs.js";
 import { reportsReadmeDocument } from "../documents/index.js";
+import { discoverWorkspace } from "../workspace/discovery.js";
+import { renderAnalyzeMarkdown } from "./analyze-renderer.js";
 
 export function analyzeWorkspace(root) {
   const discovery = discoverWorkspace(root);
@@ -90,9 +90,9 @@ function inferWorkspaceRiskBoundaries(discovery) {
     add(
       "workspace-boundary",
       "medium",
-      "项目包含多个 package，跨包修改可能影响多个运行入口。",
+      "The project contains multiple packages, so cross-package changes can affect multiple runtime entrypoints.",
       discovery.packages.slice(0, 8).map((pkg) => pkg.path),
-      "先确认 package 依赖方向，再把任务收窄到单个 app/package 或明确的调用链。"
+      "Confirm package dependency direction before narrowing the task to a single app, package, or call chain."
     );
   }
 
@@ -100,9 +100,9 @@ function inferWorkspaceRiskBoundaries(discovery) {
     add(
       "script-entrypoints",
       "low",
-      "package scripts 是常见验证入口，但不同 package 的脚本可能语义不同。",
+      "Package scripts are common validation entrypoints, but script meaning may differ by package.",
       discovery.semanticEntrypoints.filter((entrypoint) => entrypoint.kind === "script").map((entrypoint) => entrypoint.path),
-      "执行变更前优先查看目标 package 的 scripts，并选择最近的验证命令。"
+      "Check the target package scripts before choosing the nearest validation command."
     );
   }
 
@@ -111,9 +111,9 @@ function inferWorkspaceRiskBoundaries(discovery) {
     add(
       "api-client",
       "medium",
-      "存在请求/API 相关文件，全局请求层变更可能影响多个业务模块。",
+      "Request or API files are present; global request-layer changes can affect multiple features.",
       requestFiles.slice(0, 8),
-      "修改请求封装、拦截器或错误处理时，检查认证、重试、错误提示和调用方兼容性。"
+      "When changing request wrappers, interceptors, or error handling, check auth, retry, error messaging, and caller compatibility."
     );
   }
 
@@ -122,9 +122,9 @@ function inferWorkspaceRiskBoundaries(discovery) {
     add(
       "routing",
       "medium",
-      "存在路由或权限入口，变更可能造成跳转循环或访问控制回归。",
+      "Routing or permission entrypoints are present; changes can create redirect loops or access-control regressions.",
       routingFiles.slice(0, 8),
-      "验证公开页面、受保护页面、登录态和失效登录态的路径。"
+      "Verify public pages, protected pages, logged-in state, and expired-session paths."
     );
   }
 
@@ -132,9 +132,9 @@ function inferWorkspaceRiskBoundaries(discovery) {
     add(
       "broad-feature-surface",
       "low",
-      "项目 feature 数量较多，宽泛任务容易带入过多上下文。",
+      "The project has many feature roots, so broad tasks can pull in too much context.",
       discovery.features.slice(0, 8).map((feature) => feature.path),
-      "使用 ctx pack 时在任务中带上 feature、页面、模块或 package 名称。"
+      "Include a feature, page, module, or package name when running ctx pack."
     );
   }
 
@@ -145,79 +145,24 @@ function recommendNextActions(discovery, riskBoundaries) {
   const actions = [];
 
   if (!existsSync(join(discovery.root, ".cortexa", "workspace.json"))) {
-    actions.push("运行 ctx setup 初始化 .cortexa/workspace.json 和项目上下文资产。");
+    actions.push("Run ctx setup to initialize .cortexa/workspace.json and project context assets.");
   }
 
   if (discovery.semanticEntrypoints.length === 0) {
-    actions.push("补充明确入口文件或 package scripts，帮助 ctx pack 建立更稳定的任务锚点。");
+    actions.push("Add clear entrypoint files or package scripts so ctx pack can establish stable task anchors.");
   }
 
   if (discovery.packages.length > 0) {
-    actions.push("为关键 package 补充 ownership-map，明确跨包任务的边界和负责人。");
+    actions.push("Fill ownership-map for key packages so cross-package tasks have clear boundaries and owners.");
   }
 
   if (riskBoundaries.some((risk) => risk.area === "api-client")) {
-    actions.push("把请求/API 约定沉淀到 .cortexa/specs/api-conventions，减少后续任务歧义。");
+    actions.push("Document request/API conventions in .cortexa/specs/api-conventions to reduce future task ambiguity.");
   }
 
-  return actions.length > 0 ? actions : ["项目结构信号清晰；下一步可以用 ctx pack --explain 验证具体任务的上下文质量。"];
+  return actions.length > 0 ? actions : ["Project structure signals are clear; use ctx pack --explain to validate context quality for a concrete task."];
 }
 
 function sourceFilesMatching(discovery, pattern) {
   return (discovery.sourceGraph?.nodes || []).map((node) => node.id).filter((file) => pattern.test(file));
-}
-
-function renderAnalyzeMarkdown(report) {
-  const lines = [
-    "# Cortexa Analyze Report",
-    "",
-    `Generated: ${report.generatedAt}`,
-    "",
-    "## Project",
-    "",
-    `- Name: ${report.project.name}`,
-    `- Workspace: ${report.project.workspace}`,
-    `- Package manager: ${report.project.packageManager}`,
-    `- Frameworks: ${formatList(report.project.frameworks)}`,
-    `- Adapters: ${formatList(report.project.adapters)}`,
-    "",
-    "## Structure",
-    "",
-    `- Source files: ${report.structure.sourceFileCount}`,
-    `- Source imports: ${report.structure.sourceImportCount}`,
-    `- Packages: ${report.structure.packageCount}`,
-    `- Features: ${report.structure.featureCount}`,
-    `- Entrypoints: ${report.structure.entrypointCount}`,
-    "",
-    "## Packages",
-    "",
-    ...formatItems(report.packages.slice(0, 20), (pkg) => `- ${pkg.path} (${pkg.name}, ${pkg.framework})`),
-    "",
-    "## Entrypoints",
-    "",
-    ...formatItems(report.entrypoints.slice(0, 20), (entrypoint) => `- ${entrypoint.path} [${entrypoint.kind}]`),
-    "",
-    "## Features",
-    "",
-    ...formatItems(report.features.slice(0, 20), (feature) => `- ${feature.path} [${feature.kind}] files=${feature.fileCount}`),
-    "",
-    "## Risk Boundaries",
-    "",
-    ...formatItems(report.riskBoundaries, (risk) => `- ${risk.area} (${risk.severity}): ${risk.reason}`),
-    "",
-    "## Recommendations",
-    "",
-    ...report.recommendations.map((action) => `- ${action}`),
-    ""
-  ];
-
-  return lines.join("\n");
-}
-
-function formatList(values) {
-  return values.length > 0 ? values.join(", ") : "none";
-}
-
-function formatItems(values, render) {
-  return values.length > 0 ? values.map(render) : ["- none"];
 }

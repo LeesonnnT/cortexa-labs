@@ -25,6 +25,8 @@ test("ctx go initializes missing Cortexa assets and prints a Context Packet", ()
     assert.ok(existsSync(join(root, ".cortexa", "context-manifest.json")));
 
     const packet = JSON.parse(result.stdout);
+    assert.equal(packet.schema, "cortexa.context-packet");
+    assert.equal(packet.schemaVersion, 1);
     assert.equal(packet.task, "update settings page");
     assert.ok(packet.readiness);
     assert.ok(packet.phaseTransition);
