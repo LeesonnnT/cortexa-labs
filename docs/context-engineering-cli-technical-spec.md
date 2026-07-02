@@ -1,62 +1,62 @@
-# Context Engineering CLI Technical Spec
+# Context Engineering CLI 技术总纲
 
-## 1. Product Scope
+## 1. 产品范围
 
-Cortexa is a context-first CLI for AI-assisted engineering. It does not try to be a general agent platform, workflow platform, chat product, or model provider layer.
+Cortexa 是一个面向 AI 辅助工程的 context-first CLI。它不试图成为通用 Agent 平台、工作流平台、聊天产品或模型供应商封装层。
 
-The product promise is:
+产品承诺很简单：
 
-> Given a real engineering task, `ctx pack` returns the smallest useful Context Packet with evidence, reading order, risk boundaries, and validation hints.
+> 给定一个真实工程任务，`ctx pack` 返回最小可用的 Context Packet，其中包含证据、阅读顺序、风险边界和验证提示。
 
-The first product loop is:
+第一阶段产品闭环是：
 
 ```txt
 workspace discovery -> project kit assets -> task context resolution -> Context Packet -> AI coding tool
 ```
 
-## 2. Core Concepts
+## 2. 核心概念
 
 ### Workspace
 
-A Workspace is the target project being analyzed. Cortexa discovers package metadata, framework signals, entrypoints, source files, feature folders, workspace packages, dependency relationships, and generated `.cortexa` assets.
+Workspace 是被分析的目标项目。Cortexa 会发现包元数据、框架信号、入口文件、源文件、功能目录、workspace packages、依赖关系，以及已生成的 `.cortexa` 资产。
 
 ### Context Packet
 
-A Context Packet is the task-sized unit of engineering context consumed by AI tools. It must be:
+Context Packet 是面向具体任务、供 AI 工具消费的工程上下文单元。它必须满足：
 
-- minimal enough to keep token use low;
-- structured enough to be machine-readable;
-- evidence-backed enough to explain why files were selected;
-- bounded enough to reduce accidental cross-feature changes;
-- versioned enough to keep integrations stable.
+- 足够小，降低 token 消耗；
+- 足够结构化，便于机器读取；
+- 有证据支撑，能够解释为什么选择这些文件；
+- 有明确边界，减少跨 feature 误改；
+- 有版本约束，保证集成稳定。
 
 ### Project Kit
 
-The Project Kit is the generated `.cortexa/` asset system. It stores agents, skills, specs, adapter snapshots, graph snapshots, ownership maps, workflow notes, reports, and manifest metadata.
+Project Kit 是生成在 `.cortexa/` 下的资产系统。它存储 agents、skills、specs、adapter 快照、graph 快照、ownership map、workflow notes、reports 和 manifest 元数据。
 
-Human-owned files are only created when missing. Machine-owned snapshots may be refreshed. Hybrid files preserve human edits around Cortexa-managed blocks.
+人工维护的文件只在缺失时创建。机器生成的快照可以刷新。混合资产只刷新 Cortexa 受管区块，并保留团队手写内容。
 
-## 3. MVP Boundary
+## 3. MVP 边界
 
-Phase 1 focuses on a stable releaseable loop:
+Phase 1 聚焦一个稳定、可发布的闭环：
 
-1. `ctx setup` creates core `.cortexa` assets and editor rules.
-2. `ctx update` refreshes managed snapshots without overwriting human edits.
-3. `ctx discover` reports project shape.
-4. `ctx analyze` writes project reports.
-5. `ctx audit` checks asset health and drift.
-6. `ctx pack --explain <task>` builds a versioned Context Packet.
-7. `ctx go --explain <task>` initializes or refreshes assets, then prints a Context Packet.
+1. `ctx setup` 创建核心 `.cortexa` 资产和编辑器规则。
+2. `ctx update` 刷新受管快照，且不覆盖人工编辑内容。
+3. `ctx discover` 输出项目形态。
+4. `ctx analyze` 写入项目分析报告。
+5. `ctx audit` 检查资产健康度和快照漂移。
+6. `ctx pack --explain <task>` 构建版本化的 Context Packet。
+7. `ctx go --explain <task>` 初始化或刷新资产，然后打印 Context Packet。
 
-Out of scope for Phase 1:
+Phase 1 暂不做：
 
-- dashboard UI;
-- direct model/provider execution;
-- arbitrary workflow execution;
-- remote service or SaaS state;
-- broad multi-agent orchestration beyond packet recommendations and handoff metadata.
+- dashboard UI；
+- 直接执行模型或接入 provider；
+- 任意工作流执行；
+- 远程服务或 SaaS 状态；
+- 超出 packet 推荐和 handoff 元数据之外的大规模多 Agent 编排。
 
-## 4. Architecture
+## 4. 架构
 
 ```txt
 CLI
@@ -68,53 +68,53 @@ CLI
   -> Context Packet
 ```
 
-### CLI Layer
+### CLI 层
 
-The CLI entrypoint stays thin. It parses command names, delegates to command modules, and handles top-level process errors.
+CLI 入口保持轻量。它负责解析命令名、分发到命令模块，并处理顶层进程错误。
 
-Command implementations may format output and coordinate modules, but domain logic should live in focused modules:
+命令实现可以负责输出格式和模块编排，但领域逻辑应放在职责明确的模块中：
 
-- `workspace/` for discovery and lifecycle state;
-- `adapters/` for project analysis;
-- `project-kit/` for generated assets and manifests;
-- `context/` for packet construction and quality signals;
-- `reports/` for analyze and audit outputs;
-- `editors/` for editor integration rules;
-- `setup/` for options and guided setup.
+- `workspace/`：workspace discovery 和生命周期状态；
+- `adapters/`：项目分析；
+- `project-kit/`：生成资产和 manifests；
+- `context/`：packet 构建和质量信号；
+- `reports/`：analyze 和 audit 输出；
+- `editors/`：编辑器集成规则；
+- `setup/`：选项解析和引导式设置。
 
-### Adapter Layer
+### Adapter 层
 
-Adapters convert project files into semantic signals:
+Adapters 将项目文件转换为语义信号：
 
-- package manager and workspace layout;
-- framework and language signals;
-- source roots and entrypoints;
-- package boundaries;
-- feature folders;
-- import graph edges;
-- dependency graph data.
+- 包管理器和 workspace 布局；
+- 框架和语言信号；
+- 源码根目录和入口；
+- package 边界；
+- feature 目录；
+- import graph 边；
+- dependency graph 数据。
 
-Adapters should prefer deterministic file and metadata analysis over broad guessing.
+Adapters 应优先使用确定性的文件和元数据分析，而不是宽泛猜测。
 
-### Context Layer
+### Context 层
 
-The context layer is responsible for:
+Context 层负责：
 
-- task intent classification;
-- task term expansion;
-- anchor resolution against packages, features, entrypoints, and semantic roles;
-- required and optional file selection;
-- reading order;
-- risk boundaries;
-- token budget;
-- readiness and quality gate metadata;
-- handoff metadata for AI tools.
+- 任务意图分类；
+- 任务关键词扩展；
+- 基于 packages、features、entrypoints 和语义角色解析 anchors；
+- 选择 required 和 optional files；
+- 生成阅读顺序；
+- 标注风险边界；
+- 估算 token budget；
+- 生成 readiness 和 quality gate 元数据；
+- 生成面向 AI 工具的 handoff 元数据。
 
-The Context Packet must include `schema`, `schemaVersion`, and `generatedAt` so downstream integrations can detect contract changes.
+Context Packet 必须包含 `schema`、`schemaVersion` 和 `generatedAt`，方便下游集成检测契约变化。
 
-## 5. Context Packet Contract
+## 5. Context Packet 契约
 
-Phase 1 uses this top-level contract:
+Phase 1 使用以下顶层契约：
 
 ```json
 {
@@ -136,29 +136,29 @@ Phase 1 uses this top-level contract:
 }
 ```
 
-The contract may add fields in minor releases, but removing or renaming top-level fields requires a schema version change.
+契约可以在 minor release 中新增字段，但删除或重命名顶层字段必须升级 schema version。
 
 ## 6. Quality Gate
 
-`ctx pack --explain` should explain whether the packet is ready to consume.
+`ctx pack --explain` 应说明当前 packet 是否已经可以被消费。
 
-Quality signals include:
+质量信号包括：
 
-- whether the task had strong anchors;
-- whether required files were selected;
-- whether selected files have multi-source evidence;
-- whether selected context is small enough;
-- whether risky cross-cutting areas such as auth, request interceptors, routing, or workspace boundaries are involved.
+- 任务是否有强 anchors；
+- 是否选择了 required files；
+- 选中的文件是否有多来源证据；
+- 选中的上下文是否足够小；
+- 是否涉及 auth、request interceptors、routing、workspace boundaries 等高风险横切区域。
 
-Possible gate statuses:
+可用的 gate 状态：
 
-- `pass`: AI tools can proceed.
-- `review`: humans or a context analyst should inspect the packet first.
-- `block`: the task needs narrowing or better evidence.
+- `pass`：AI 工具可以继续执行。
+- `review`：人类或 context analyst 应先检查 packet。
+- `block`：任务需要收窄，或需要更强证据。
 
 ## 7. Release Gate
 
-Before publishing, the repository should pass:
+发布前，仓库应通过：
 
 ```bash
 npm test
@@ -167,12 +167,12 @@ npm pack --workspace apps/cli --dry-run
 npm pack --workspace apps/create-cortexa --dry-run
 ```
 
-The release gate should verify package metadata, executable entrypoints, documentation, CLI smoke behavior, unit tests, initializer behavior, and example lifecycle behavior.
+release gate 应验证 package 元数据、可执行入口、文档、CLI smoke 行为、单元测试、initializer 行为和示例项目生命周期。
 
-## 8. Phase 1 Engineering Priorities
+## 8. Phase 1 工程优先级
 
-1. Keep CLI entrypoints and command modules focused.
-2. Keep `Context Packet` output versioned and stable.
-3. Split large context modules by responsibility before adding more heuristics.
-4. Use tests to lock high-value packet behavior instead of snapshotting volatile timestamps.
-5. Treat documentation as product surface; docs must remain readable UTF-8 Markdown.
+1. 保持 CLI entrypoints 和 command modules 职责聚焦。
+2. 保持 `Context Packet` 输出版本化且稳定。
+3. 在继续添加 heuristics 之前，先按职责拆分大型 context modules。
+4. 用测试锁定高价值 packet 行为，而不是 snapshot 易变时间戳。
+5. 将文档视为产品表面；docs 必须保持可读的 UTF-8 Markdown。
