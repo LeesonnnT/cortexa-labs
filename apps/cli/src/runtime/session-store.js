@@ -57,6 +57,18 @@ export function readRuntimeState(root, options = {}) {
   return normalizeRuntimeState(readJson(join(root, ".cortexa", "runtime", "state.json")), root, options.now || new Date().toISOString());
 }
 
+export function readRuntimeSession(root, sessionId, options = {}) {
+  const state = readRuntimeState(root, options);
+  const id = sessionId || state.activeSessionId || state.sessionId;
+  if (!id) {
+    return null;
+  }
+
+  const sessionEntry = (state.sessions || []).find((session) => session.id === id);
+  const sessionRef = sessionEntry?.sessionRef || `.cortexa/runtime/sessions/${id}.json`;
+  return readJson(join(root, sessionRef)) || null;
+}
+
 export function createRuntimeState(options = {}) {
   const now = options.now || new Date().toISOString();
 

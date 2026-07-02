@@ -6,7 +6,7 @@ import { listEditorIntegrations, setupEditors, teardownEditors } from "../editor
 import { setupProjectKit, setupStarterKit, updateProjectKit } from "../project-kit/index.js";
 import { analyzeWorkspace } from "../reports/analyze.js";
 import { auditWorkspace } from "../reports/audit.js";
-import { readRuntimeState, recordContextPacketSession } from "../runtime/session-store.js";
+import { readRuntimeSession, readRuntimeState, recordContextPacketSession } from "../runtime/session-store.js";
 import { discoverWorkspace } from "../workspace/discovery.js";
 import { hasFlag, initializeWorkspace, parseEditorSelection, parseTemplateSelection, promptSetupOptions } from "../setup/options.js";
 import { templateRegistry } from "../registries/index.js";
@@ -39,7 +39,7 @@ function createCommands(cwd, args) {
       ctx audit
       ctx pack [--explain] <task>
       ctx go [--explain] [--template auto|minimal|frontend|backend|monorepo] [--editors codex|cursor|all|codex,cursor,...] <task>
-      ctx sessions
+      ctx sessions [--latest] [--id <sessionId>]
     
     Commands:
       help      Show this help.
@@ -192,6 +192,17 @@ function createCommands(cwd, args) {
         }
       },
       sessions() {
+        if (hasFlag(args, "--latest", "--active")) {
+          console.log(JSON.stringify(readRuntimeSession(cwd), null, 2));
+          return;
+        }
+
+        const sessionId = parseOptionValue(args, "--id");
+        if (sessionId) {
+          console.log(JSON.stringify(readRuntimeSession(cwd, sessionId), null, 2));
+          return;
+        }
+
         console.log(JSON.stringify(readRuntimeState(cwd), null, 2));
       }
   };
@@ -229,14 +240,18 @@ function taskArgs(args) {
 }
 
 function parseTask(args) {
+  return parseOptionValue(args, "--task");
+}
+
+function parseOptionValue(args, name) {
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
 
-    if (arg === "--task") {
+    if (arg === name) {
       return args[index + 1] || "";
     }
 
-    if (arg.startsWith("--task=")) {
+    if (arg.startsWith(`${name}=`)) {
       return arg.slice(arg.indexOf("=") + 1);
     }
   }
