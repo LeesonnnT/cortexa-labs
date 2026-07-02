@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -23,6 +23,7 @@ test("ctx go initializes missing Cortexa assets and prints a Context Packet", ()
     assert.equal(result.status, 0, result.stderr || result.stdout);
     assert.ok(existsSync(join(root, ".cortexa", "workspace.json")));
     assert.ok(existsSync(join(root, ".cortexa", "context-manifest.json")));
+    assert.ok(existsSync(join(root, ".cortexa", "runtime", "state.json")));
 
     const packet = JSON.parse(result.stdout);
     assert.equal(packet.schema, "cortexa.context-packet");
@@ -31,6 +32,22 @@ test("ctx go initializes missing Cortexa assets and prints a Context Packet", ()
     assert.ok(packet.readiness);
     assert.ok(packet.phaseTransition);
     assert.ok(packet.requiredFiles.some((file) => file.path === "src/pages/settings/index.tsx"));
+
+    const state = JSON.parse(readFileSync(join(root, ".cortexa", "runtime", "state.json"), "utf8"));
+    const sessionFiles = readdirSync(join(root, ".cortexa", "runtime", "sessions")).filter((file) => file.endsWith(".json"));
+    const cacheFiles = readdirSync(join(root, ".cortexa", "runtime", "cache")).filter((file) => file.endsWith(".context-packet.json"));
+    assert.equal(state.schema, "cortexa.runtime-state");
+    assert.equal(state.status, "context-ready");
+    assert.equal(state.sessions.length, 1);
+    assert.equal(state.cache.entries.length, 1);
+    assert.equal(sessionFiles.length, 1);
+    assert.equal(cacheFiles.length, 1);
+
+    const session = JSON.parse(readFileSync(join(root, ".cortexa", "runtime", "sessions", sessionFiles[0]), "utf8"));
+    const cachedPacket = JSON.parse(readFileSync(join(root, ".cortexa", "runtime", "cache", cacheFiles[0]), "utf8"));
+    assert.equal(session.schema, "cortexa.runtime-session");
+    assert.equal(session.task, "update settings page");
+    assert.deepEqual(cachedPacket.requiredFiles, packet.requiredFiles);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

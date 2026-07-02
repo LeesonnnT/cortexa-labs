@@ -9,6 +9,11 @@ import { buildSourceGraph as buildCliSourceGraph, loadTsconfigResolvers as loadC
 import { resolveTaskFiles as resolveCliTaskFiles } from "../src/context/task-resolver.js";
 import { classifyTaskIntent as classifyCliTaskIntent } from "../src/context/task-signals.js";
 import {
+  createCacheKey as createCliCacheKey,
+  createRuntimeSession as createCliRuntimeSession,
+  createRuntimeState as createCliRuntimeState
+} from "../src/runtime/session-store.js";
+import {
   buildDependencyGraph as buildWorkspaceDependencyGraph,
   buildSourceGraph as buildWorkspaceSourceGraph,
   loadTsconfigResolvers as loadWorkspaceTsconfigResolvers
@@ -18,6 +23,11 @@ import {
   resolveTaskFiles as resolveWorkspaceTaskFiles,
   selectContextScope as selectWorkspaceContextScope
 } from "../../../workspace/resolver/src/index.js";
+import {
+  createCacheKey as createWorkspaceCacheKey,
+  createRuntimeSession as createWorkspaceRuntimeSession,
+  createRuntimeState as createWorkspaceRuntimeState
+} from "../../../workspace/runtime/src/index.js";
 
 test("CLI graph behavior stays aligned with workspace graph kernel", () => {
   const root = createFixture("graph-parity");
@@ -106,6 +116,36 @@ test("CLI resolver behavior stays aligned with workspace resolver kernel", () =>
   } finally {
     removeFixture(root);
   }
+});
+
+test("CLI runtime model stays aligned with workspace runtime kernel", () => {
+  const now = "2026-07-02T00:00:00.000Z";
+  const packet = {
+    schema: "cortexa.context-packet",
+    schemaVersion: 1,
+    task: "fix api request",
+    generatedAt: now,
+    qualityGate: { status: "pass" },
+    requiredFiles: [{ path: "src/api/request.ts" }],
+    optionalFiles: []
+  };
+
+  assert.deepEqual(createCliRuntimeState({ workspaceRoot: "D:/repo", now }), createWorkspaceRuntimeState({ workspaceRoot: "D:/repo", now }));
+  assert.deepEqual(
+    createCliRuntimeSession({
+      task: "fix api request",
+      workspaceRoot: "D:/repo",
+      contextPacket: packet,
+      now
+    }),
+    createWorkspaceRuntimeSession({
+      task: "fix api request",
+      workspaceRoot: "D:/repo",
+      contextPacket: packet,
+      now
+    })
+  );
+  assert.equal(createCliCacheKey(packet), createWorkspaceCacheKey(packet));
 });
 
 function stableJson(value) {

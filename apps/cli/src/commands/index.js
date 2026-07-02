@@ -6,6 +6,7 @@ import { listEditorIntegrations, setupEditors, teardownEditors } from "../editor
 import { setupProjectKit, setupStarterKit, updateProjectKit } from "../project-kit/index.js";
 import { analyzeWorkspace } from "../reports/analyze.js";
 import { auditWorkspace } from "../reports/audit.js";
+import { recordContextPacketSession } from "../runtime/session-store.js";
 import { discoverWorkspace } from "../workspace/discovery.js";
 import { hasFlag, initializeWorkspace, parseEditorSelection, parseTemplateSelection, promptSetupOptions } from "../setup/options.js";
 import { templateRegistry } from "../registries/index.js";
@@ -180,7 +181,9 @@ function createCommands(cwd, args) {
           const explain = hasFlag(args, "--explain");
           const task = parseTask(args) || taskArgs(args).join(" ").trim() || "default-task";
           ensureReadyWorkspace(cwd, args);
-          console.log(JSON.stringify(createContextPacket(cwd, task, { explain }), null, 2));
+          const packet = createContextPacket(cwd, task, { explain });
+          recordContextPacketSession(cwd, task, packet);
+          console.log(JSON.stringify(packet, null, 2));
         } catch (error) {
           console.error(error.message);
           process.exitCode = 1;
