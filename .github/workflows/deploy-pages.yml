@@ -27,6 +27,8 @@ jobs:
 
       - name: 配置 GitHub Pages
         uses: actions/configure-pages@v5
+        with:
+          enablement: true
 
       - name: 构建静态站点
         uses: actions/jekyll-build-pages@v1
