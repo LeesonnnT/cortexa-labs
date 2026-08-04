@@ -53,15 +53,15 @@ function inferOwnershipNotes(path, hint, isPrivate) {
   const notes = [];
 
   if (isPrivate) {
-    notes.push("private package");
+    notes.push("私有包");
   }
 
   if (String(hint || "").toLowerCase().includes("route")) {
-    notes.push("route boundary");
+    notes.push("路由边界");
   }
 
   if (path.includes("src/pages") || path.includes("src/views") || path.includes("app/")) {
-    notes.push("user-facing surface");
+    notes.push("面向用户的界面");
   }
 
   return notes.join(", ");

@@ -30,7 +30,7 @@ export function resolveTemplate(value, discovery) {
   const template = templateRegistry.find((candidate) => candidate.id === id);
 
   if (!template) {
-    throw new Error(`Unsupported template: ${requested}. Choose from ${supportedTemplates.join(", ")} or auto.`);
+    throw new Error(`不支持的模板：${requested}。请选择 ${supportedTemplates.join(", ")} 或 auto。`);
   }
 
   return template;
@@ -108,13 +108,13 @@ export function parseEditorSelection(values) {
     .filter(Boolean);
 
   if (tokens.length === 0) {
-    throw new Error(`No editor selected. Choose from ${supportedEditors.join(", ")} or all.`);
+    throw new Error(`未选择编辑器。请选择 ${supportedEditors.join(", ")} 或 all。`);
   }
 
   const selected = tokens.flatMap((editor) => editorAliases.get(editor) || [editor]);
   const invalid = selected.filter((editor) => !supportedEditors.includes(editor));
   if (invalid.length > 0) {
-    throw new Error(`Unsupported editor: ${invalid.join(", ")}. Choose from ${supportedEditors.join(", ")} or all.`);
+    throw new Error(`不支持的编辑器：${invalid.join(", ")}。请选择 ${supportedEditors.join(", ")} 或 all。`);
   }
 
   return [...new Set(selected)];
@@ -125,7 +125,7 @@ export function hasFlag(values, ...flags) {
 }
 
 function formatChoice(choice, index, defaultId) {
-  const marker = choice.id === defaultId ? " (default)" : "";
+  const marker = choice.id === defaultId ? "（默认）" : "";
   return `  ${index + 1}. ${choice.id}${marker} - ${choice.description}`;
 }
 
@@ -147,16 +147,16 @@ async function promptChoice(rl, question, choices, defaultId) {
       return choice.id;
     }
 
-    console.log(`Choose one of: ${choices.map((choice) => choice.id).join(", ")}`);
+    console.log(`请选择以下之一：${choices.map((choice) => choice.id).join(", ")}`);
   }
 }
 
 async function promptEditors(rl, defaultValue = "codex") {
   console.log("");
-  console.log("Editor integrations:");
-  console.log("  all - generate rules for every supported editor");
-  console.log("  common picks - codex | cursor | codex,cursor | copilot | claude");
-  console.log(`  supported - ${supportedEditors.join(", ")}`);
+  console.log("编辑器集成：");
+  console.log("  all - 为全部支持的编辑器生成规则");
+  console.log("  常用选择 - codex | cursor | codex,cursor | copilot | claude");
+  console.log(`  支持列表 - ${supportedEditors.join(", ")}`);
 
   while (true) {
     const answer = (await rl.question(`Editors to configure [${defaultValue}]: `)).trim();
@@ -172,7 +172,7 @@ async function promptEditors(rl, defaultValue = "codex") {
 
 export async function promptSetupOptions(root) {
   if (!input.isTTY || !output.isTTY) {
-    throw new Error("Interactive setup requires a TTY. Run `ctx setup --template frontend --editors codex,cursor` instead.");
+    throw new Error("交互式 setup 需要 TTY。请改为运行 `ctx setup --template frontend --editors codex,cursor`。");
   }
 
   const discovery = discoverWorkspace(root);
@@ -180,15 +180,15 @@ export async function promptSetupOptions(root) {
   const rl = createInterface({ input, output });
 
   try {
-    console.log("Cortexa setup");
-    console.log(`Project: ${discovery.name}`);
-    console.log(`Detected template: ${inferredTemplate}`);
+    console.log("Cortexa 初始化");
+    console.log(`项目：${discovery.name}`);
+    console.log(`检测到的模板：${inferredTemplate}`);
 
     const template = await promptChoice(
       rl,
-      "Template",
+      "模板",
       [
-        { id: "auto", description: `use detected template (${inferredTemplate})` },
+        { id: "auto", description: `使用检测到的模板（${inferredTemplate}）` },
         ...templateRegistry.map((template) => ({ id: template.id, description: template.description }))
       ],
       "auto"

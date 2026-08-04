@@ -9,20 +9,20 @@ const integrationRegistry = createIntegrationRegistry({ cursorRule, kiroRule, ma
 
 function managedInstructions(label) {
   return `${managedStart}
-# Cortexa Context (${label})
+# Cortexa 上下文（${label}）
 
-Use Cortexa before broad repository exploration for engineering tasks:
+执行工程任务时，在大范围探索仓库前先使用 Cortexa：
 
-1. Run \`ctx discover\` when repository structure is unknown.
-2. Run \`ctx pack "<task>"\` to obtain the minimal structured context packet.
-3. Check \`readiness\` and \`qualityGate\` before starting execution.
-4. Check \`phaseTransition\` to decide whether to execute, review, or refine the task.
-5. Read the specs listed in the packet from \`.cortexa/specs/\` before applying project conventions.
-6. If \`.cortexa/project-kit.json\` or \`.cortexa/starter-kit.json\` exists, use its matching skill or agent profile for the task.
-7. Use \`handoff\` when the task moves between agents or phases.
-8. Work from that packet and expand scope only when the task requires it.
+1. 不清楚仓库结构时，运行 \`ctx discover\`。
+2. 运行 \`ctx pack "<task>"\` 获取最小结构化 Context Packet。
+3. 开始执行前检查 \`readiness\` 和 \`qualityGate\`。
+4. 检查 \`phaseTransition\`，决定执行、复核或收窄任务。
+5. 应用项目约定前，先读取 Packet 列出的 \`.cortexa/specs/\` 规范。
+6. 存在 \`.cortexa/project-kit.json\` 或 \`.cortexa/starter-kit.json\` 时，为任务使用对应 Skill 或 Agent 档案。
+7. 任务在 Agent 或阶段之间流转时使用 \`handoff\`。
+8. 以 Packet 为依据，仅在任务确有需要时扩大范围。
 
-When the CLI is installed as a local dependency, invoke it as \`npx --no-install ctx <command>\`.
+CLI 作为本地依赖安装时，使用 \`npx --no-install ctx <command>\` 调用。
 ${managedEnd}`;
 }
 
@@ -32,7 +32,7 @@ function markdownRule(label) {
 
 function cursorRule() {
   return `---
-description: Use Cortexa structured context before broad repository exploration
+description: 在大范围探索仓库前使用 Cortexa 结构化上下文
 alwaysApply: true
 ---
 
@@ -52,7 +52,7 @@ ${managedInstructions("Kiro")}
 function windsurfRule() {
   return `---
 trigger: always_on
-description: Use Cortexa structured context before broad repository exploration
+description: 在大范围探索仓库前使用 Cortexa 结构化上下文
 ---
 
 ${managedInstructions("Windsurf")}
@@ -64,7 +64,7 @@ function updateManagedSection(path, content) {
 
   if (!existsSync(path)) {
     writeFileSync(path, content);
-    return "created";
+    return "已创建";
   }
 
   const current = readFileSync(path, "utf8");
@@ -73,12 +73,12 @@ function updateManagedSection(path, content) {
 
   if (start === -1 || end === -1 || end < start) {
     writeFileSync(path, `${current.trimEnd()}\n\n${content}`);
-    return "extended";
+    return "已扩展";
   }
 
   const afterEnd = end + managedEnd.length;
   writeFileSync(path, `${current.slice(0, start)}${content.trimEnd()}${current.slice(afterEnd)}`);
-  return "updated";
+  return "已更新";
 }
 
 function writeGeneratedRule(path, content) {
@@ -86,11 +86,11 @@ function writeGeneratedRule(path, content) {
   const existed = existsSync(path);
 
   if (existed && !readFileSync(path, "utf8").includes(managedStart)) {
-    return "skipped (existing custom rule)";
+    return "已跳过（存在自定义规则）";
   }
 
   writeFileSync(path, content);
-  return existed ? "updated" : "created";
+  return existed ? "已更新" : "已创建";
 }
 
 function isEmptyRuleShell(content) {
@@ -105,7 +105,7 @@ function isEmptyRuleShell(content) {
 
 function removeManagedSection(path, options = {}) {
   if (!existsSync(path)) {
-    return "missing";
+    return "不存在";
   }
 
   const current = readFileSync(path, "utf8");
@@ -113,7 +113,7 @@ function removeManagedSection(path, options = {}) {
   const end = current.indexOf(managedEnd);
 
   if (start === -1 || end === -1 || end < start) {
-    return "skipped (no managed content)";
+    return "已跳过（不存在受管内容）";
   }
 
   const afterEnd = end + managedEnd.length;
@@ -121,11 +121,11 @@ function removeManagedSection(path, options = {}) {
 
   if (!next || (options.generatedFile && isEmptyRuleShell(next))) {
     rmSync(path);
-    return "removed";
+    return "已移除";
   }
 
   writeFileSync(path, `${next}\n`);
-  return "cleaned";
+  return "已清理";
 }
 
 export function setupEditors(root, editors) {
@@ -192,7 +192,7 @@ export function teardownEditors(root, options = {}) {
     results.push({
       editor: "cortexa",
       path: relative(root, integrationsPath),
-      status: "removed"
+      status: "已移除"
     });
   }
 
@@ -203,7 +203,7 @@ export function teardownEditors(root, options = {}) {
       results.push({
         editor: "cortexa",
         path: relative(root, cortexaDir),
-        status: "purged"
+        status: "已清除"
       });
     }
   }

@@ -17,11 +17,11 @@ export function writeJson(path, value) {
 export function writeIfMissing(path, content) {
   mkdirSync(dirname(path), { recursive: true });
   if (existsSync(path)) {
-    return "kept (existing)";
+    return "已保留（已有文件）";
   }
 
   writeFileSync(path, content);
-  return "created";
+  return "已创建";
 }
 
 export function listTopLevelDirs(root) {

@@ -30,7 +30,7 @@ export function createRuntimeSession(options = {}) {
   const now = options.now || new Date().toISOString();
   const task = String(options.task || "").trim();
   if (!task) {
-    throw new Error("Runtime session requires a task.");
+    throw new Error("Runtime 会话必须提供任务。");
   }
 
   const contextPacketRef = options.contextPacket ? summarizeContextPacket(options.contextPacket) : null;
@@ -77,7 +77,7 @@ export function activateRuntimeSession(state, session, options = {}) {
 
 export function transitionRuntimeSession(session, status, options = {}) {
   if (!sessionStatuses.has(status)) {
-    throw new Error(`Unknown runtime session status: ${status}`);
+    throw new Error(`未知的 runtime 会话状态：${status}`);
   }
 
   const now = options.now || new Date().toISOString();

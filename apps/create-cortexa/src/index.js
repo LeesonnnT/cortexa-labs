@@ -16,36 +16,36 @@ const packageJsonPath = join(root, "package.json");
 const cliPath = join(root, "node_modules", "@cortexa-labs", "cli", "src", "index.js");
 
 if (args.includes("--help") || args.includes("-h")) {
-  console.log(`Create Cortexa
+  console.log(`创建 Cortexa
 
-Usage:
+用法：
   npm create cortexa@latest
   npm create cortexa@latest -- --template frontend --editors codex,cursor
   npm create cortexa@latest -- --yes
   npm create cortexa@latest -- --yes --task "fix login token expiration"
 
-Options:
-  --template <value>  Use auto, minimal, frontend, backend, or monorepo.
-  --editors <value>   Configure codex, cursor, all, or a comma-separated selection.
-  --task <value>      Build a Context Packet immediately after setup.
-  --yes               Use automatic template detection and the Codex integration.
+选项：
+  --template <value>  使用 auto、minimal、frontend、backend 或 monorepo。
+  --editors <value>   配置 codex、cursor、all 或逗号分隔的选择。
+  --task <value>      在 setup 后立即构建 Context Packet。
+  --yes               使用自动模板检测与 Codex 集成。
 `);
   process.exit(0);
 }
 
 if (!existsSync(packageJsonPath)) {
-  console.error("Cortexa must be initialized inside an existing npm project with a package.json.");
-  console.error("Run `npm init -y` first, then run `npm create cortexa@latest` again.");
+  console.error("必须在包含 package.json 的已有 npm 项目中初始化 Cortexa。");
+  console.error("请先运行 `npm init -y`，再重新运行 `npm create cortexa@latest`。");
   process.exit(1);
 }
 
 if (!commandAvailable(npmCommand, npmBaseArgs)) {
-  console.error("npm was not found, but it is required to install @cortexa-labs/cli.");
-  console.error("Install Node.js with npm, or ensure npm is available on PATH, then run `npm create cortexa@latest` again.");
+  console.error("未找到 npm，但安装 @cortexa-labs/cli 需要 npm。");
+  console.error("请安装包含 npm 的 Node.js，或确保 npm 位于 PATH 中，然后重新运行 `npm create cortexa@latest`。");
   process.exit(1);
 }
 
-console.log("Installing @cortexa-labs/cli as a development dependency...");
+console.log("正在将 @cortexa-labs/cli 安装为开发依赖...");
 const install = spawnSync(npmCommand, [...npmBaseArgs, "install", "--save-dev", cliSpec, "--ignore-scripts"], {
   cwd: root,
   stdio: "inherit",
@@ -53,7 +53,7 @@ const install = spawnSync(npmCommand, [...npmBaseArgs, "install", "--save-dev", 
 });
 
 if (install.status !== 0) {
-  console.error("Unable to install @cortexa-labs/cli.");
+  console.error("无法安装 @cortexa-labs/cli。");
   if (install.error) {
     console.error(install.error.message);
   }
@@ -61,7 +61,7 @@ if (install.status !== 0) {
 }
 
 if (!existsSync(cliPath)) {
-  console.error("Installed CLI entrypoint was not found in node_modules.");
+  console.error("未在 node_modules 中找到已安装的 CLI 入口。");
   process.exit(1);
 }
 
@@ -75,34 +75,34 @@ const setupArgs = hasSetupOptions
     ? ["setup", "--template", "auto", "--editors", "codex"]
     : ["setup", "--interactive"];
 
-console.log("\nConfiguring Cortexa in this project...\n");
+console.log("\n正在为当前项目配置 Cortexa...\n");
 const setup = spawnSync(process.execPath, [cliPath, ...setupArgs], {
   cwd: root,
   stdio: "inherit"
 });
 
 if (setup.status !== 0) {
-  console.error("\nCortexa CLI was installed, but workspace setup did not complete.");
+  console.error("\nCortexa CLI 已安装，但工作区 setup 未完成。");
   if (setup.error) {
     console.error(setup.error.message);
   }
-  console.error("Run `npx --no-install ctx setup --interactive` to continue.");
+  console.error("请运行 `npx --no-install ctx setup --interactive` 继续。");
   process.exit(setup.status || 1);
 }
 
 if (task) {
-  console.log("\nBuilding initial Context Packet...\n");
+  console.log("\n正在构建初始 Context Packet...\n");
   const pack = spawnSync(process.execPath, [cliPath, "pack", "--explain", task], {
     cwd: root,
     stdio: "inherit"
   });
 
   if (pack.status !== 0) {
-    console.error("\nCortexa is ready, but the initial Context Packet could not be created.");
+    console.error("\nCortexa 已就绪，但无法创建初始 Context Packet。");
     process.exit(pack.status || 1);
   }
 } else {
-  console.log("\nCortexa is ready. Use `npx --no-install ctx go \"<task>\"` to set up or refresh context and build a Context Packet.");
+  console.log("\nCortexa 已就绪。使用 `npx --no-install ctx go \"<task>\"` 初始化或刷新上下文，并构建 Context Packet。");
 }
 
 function commandAvailable(command, baseArgs) {

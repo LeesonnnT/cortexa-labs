@@ -90,9 +90,9 @@ function inferWorkspaceRiskBoundaries(discovery) {
     add(
       "workspace-boundary",
       "medium",
-      "The project contains multiple packages, so cross-package changes can affect multiple runtime entrypoints.",
+      "项目包含多个包，跨包变更可能影响多个运行时入口。",
       discovery.packages.slice(0, 8).map((pkg) => pkg.path),
-      "Confirm package dependency direction before narrowing the task to a single app, package, or call chain."
+      "将任务收敛到单一应用、包或调用链前，先确认包依赖方向。"
     );
   }
 
@@ -100,9 +100,9 @@ function inferWorkspaceRiskBoundaries(discovery) {
     add(
       "script-entrypoints",
       "low",
-      "Package scripts are common validation entrypoints, but script meaning may differ by package.",
+      "包脚本常是验证入口，但不同包中的脚本语义可能不同。",
       discovery.semanticEntrypoints.filter((entrypoint) => entrypoint.kind === "script").map((entrypoint) => entrypoint.path),
-      "Check the target package scripts before choosing the nearest validation command."
+      "选择最接近的验证命令前，先检查目标包的脚本。"
     );
   }
 
@@ -111,9 +111,9 @@ function inferWorkspaceRiskBoundaries(discovery) {
     add(
       "api-client",
       "medium",
-      "Request or API files are present; global request-layer changes can affect multiple features.",
+      "检测到请求或 API 文件；全局请求层变更可能影响多个功能。",
       requestFiles.slice(0, 8),
-      "When changing request wrappers, interceptors, or error handling, check auth, retry, error messaging, and caller compatibility."
+      "修改请求封装、拦截器或错误处理时，检查鉴权、重试、错误提示和调用方兼容性。"
     );
   }
 
@@ -122,9 +122,9 @@ function inferWorkspaceRiskBoundaries(discovery) {
     add(
       "routing",
       "medium",
-      "Routing or permission entrypoints are present; changes can create redirect loops or access-control regressions.",
+      "检测到路由或权限入口；变更可能导致跳转循环或访问控制回归。",
       routingFiles.slice(0, 8),
-      "Verify public pages, protected pages, logged-in state, and expired-session paths."
+      "验证公开页面、受保护页面、已登录状态和会话过期路径。"
     );
   }
 
@@ -132,9 +132,9 @@ function inferWorkspaceRiskBoundaries(discovery) {
     add(
       "broad-feature-surface",
       "low",
-      "The project has many feature roots, so broad tasks can pull in too much context.",
+      "项目包含较多功能根目录，宽泛任务可能引入过多上下文。",
       discovery.features.slice(0, 8).map((feature) => feature.path),
-      "Include a feature, page, module, or package name when running ctx pack."
+      "运行 ctx pack 时，请包含功能、页面、模块或包名称。"
     );
   }
 
@@ -145,22 +145,22 @@ function recommendNextActions(discovery, riskBoundaries) {
   const actions = [];
 
   if (!existsSync(join(discovery.root, ".cortexa", "workspace.json"))) {
-    actions.push("Run ctx setup to initialize .cortexa/workspace.json and project context assets.");
+    actions.push("运行 ctx setup 初始化 .cortexa/workspace.json 和项目上下文资产。");
   }
 
   if (discovery.semanticEntrypoints.length === 0) {
-    actions.push("Add clear entrypoint files or package scripts so ctx pack can establish stable task anchors.");
+    actions.push("添加清晰的入口文件或包脚本，以便 ctx pack 建立稳定任务锚点。");
   }
 
   if (discovery.packages.length > 0) {
-    actions.push("Fill ownership-map for key packages so cross-package tasks have clear boundaries and owners.");
+    actions.push("为关键包补充 ownership-map，使跨包任务具有清晰边界和责任人。");
   }
 
   if (riskBoundaries.some((risk) => risk.area === "api-client")) {
-    actions.push("Document request/API conventions in .cortexa/specs/api-conventions to reduce future task ambiguity.");
+    actions.push("在 .cortexa/specs/api-conventions 中记录请求/API 约定，减少后续任务歧义。");
   }
 
-  return actions.length > 0 ? actions : ["Project structure signals are clear; use ctx pack --explain to validate context quality for a concrete task."];
+  return actions.length > 0 ? actions : ["项目结构信号清晰；请使用 ctx pack --explain 验证具体任务的上下文质量。"];
 }
 
 function sourceFilesMatching(discovery, pattern) {

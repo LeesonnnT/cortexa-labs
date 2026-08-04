@@ -12,11 +12,13 @@ export function explainContextQuality(context) {
     agents,
     riskBoundaries,
     tokenBudget,
-    expectedRoles
+    expectedRoles,
+    bindingContext = { available: false, selected: [] },
+    projectDocuments = []
   } = context;
   const selectedFiles = [...requiredFiles, ...optionalFiles];
   const missedSignals = inferMissedSignals(workspace, selectedFiles, expectedRoles);
-  const warnings = inferContextWarnings(resolvedContext, requiredFiles, optionalFiles, tokenBudget, missedSignals);
+  const warnings = inferContextWarnings(resolvedContext, requiredFiles, optionalFiles, tokenBudget, missedSignals, bindingContext);
   const confidence = estimateContextConfidence(intent, resolvedContext, requiredFiles, missedSignals, warnings, tokenBudget);
   const candidatePool = summarizeCandidatePool(resolvedContext.candidates, requiredFiles, optionalFiles);
   const metrics = summarizeQualityMetrics({
@@ -69,7 +71,9 @@ export function explainContextQuality(context) {
       skills,
       agents: agents.map((agent) => agent.id),
       riskBoundaries: riskBoundaries.map((risk) => risk.area),
-      tokenBudget: tokenBudget.level
+      tokenBudget: tokenBudget.level,
+      projectBindings: bindingContext.selected.map((binding) => `${binding.pack}:${binding.capability}:${binding.status}`),
+      projectDocumentCount: projectDocuments.length
     },
     missedSignals,
     warnings,
@@ -82,19 +86,19 @@ function createQualityGate(confidence, requiredFiles, missedSignals, warnings, t
   const reasons = [];
 
   if (requiredFiles.length === 0) {
-    reasons.push("No stable required files were selected.");
+    reasons.push("未选择稳定的必读文件。");
   }
 
   if (missedSignals.length > 0) {
-    reasons.push(`${missedSignals.length} semantic signal(s) are not covered by selected files.`);
+    reasons.push(`已选文件未覆盖 ${missedSignals.length} 个语义信号。`);
   }
 
   if (warnings.length > 0) {
-    reasons.push(`${warnings.length} context quality warning(s) need review.`);
+    reasons.push(`有 ${warnings.length} 条上下文质量警告需要复核。`);
   }
 
   if (["large", "too-large"].includes(tokenBudget.level)) {
-    reasons.push(`Token budget is high: ${tokenBudget.level}.`);
+    reasons.push(`Token 预算偏高：${tokenBudget.level}。`);
   }
 
   const status =
@@ -106,13 +110,13 @@ function createQualityGate(confidence, requiredFiles, missedSignals, warnings, t
 
   return {
     status,
-    reasons: reasons.length > 0 ? reasons : ["Context quality is sufficient for direct execution."],
+    reasons: reasons.length > 0 ? reasons : ["上下文质量足以直接执行。"],
     recommendation:
       status === "pass"
-        ? "Proceed with the readingOrder."
+        ? "遵循 readingOrder 执行。"
         : status === "review"
-          ? "Review warnings and missedSignals before expanding or executing the task."
-          : "Narrow the task or add clearer anchors, then generate a new Context Packet."
+          ? "扩大范围或执行任务前，先复核警告和 missedSignals。"
+          : "请收窄任务或补充更明确的锚点，然后生成新的 Context Packet。"
   };
 }
 
@@ -170,7 +174,7 @@ function inferMissedSignals(workspace, selectedFiles, expectedRoles) {
 
     missed.push({
       signal: role,
-      reason: `The task implies ${role} context, but selected files do not include matching semantic files.`,
+      reason: `任务暗示需要 ${role} 上下文，但已选文件未包含匹配的语义文件。`,
       candidateFiles: available.slice(0, 5)
     });
   }
@@ -194,42 +198,58 @@ function sourceFileMatchesRole(path, role) {
   return Boolean(patterns[role]?.test(value));
 }
 
-function inferContextWarnings(resolvedContext, requiredFiles, optionalFiles, tokenBudget, missedSignals) {
+function inferContextWarnings(resolvedContext, requiredFiles, optionalFiles, tokenBudget, missedSignals, bindingContext) {
   const warnings = [];
 
   if (resolvedContext.resolver.anchors.fallbackToWorkspace) {
     warnings.push({
       type: "weak-anchor",
-      message: "The task did not match a strong package, feature, or entrypoint anchor, so the resolver fell back to workspace-level search."
+      message: "任务未命中明确的包、功能或入口锚点，解析器已回退到工作区级搜索。"
     });
   }
 
   if (requiredFiles.length === 0) {
     warnings.push({
       type: "empty-required-context",
-      message: "No requiredFiles were selected. Narrow the task or add project-specific anchors before execution."
+      message: "未选择必读文件。执行前请收窄任务或补充项目级锚点。"
     });
   }
 
   if (optionalFiles.length > requiredFiles.length * 2 && optionalFiles.length >= 6) {
     warnings.push({
       type: "broad-optional-context",
-      message: "optionalFiles significantly outnumber requiredFiles, which may indicate the task is still too broad."
+      message: "可选文件显著多于必读文件，任务范围可能仍然过宽。"
     });
   }
 
   if (missedSignals.length > 0) {
     warnings.push({
       type: "missed-semantic-signal",
-      message: "The task includes semantic signals that are not represented in selected files. Review missedSignals."
+      message: "任务包含但已选文件未覆盖的语义信号，请复核 missedSignals。"
     });
   }
 
   if (["large", "too-large"].includes(tokenBudget.level)) {
     warnings.push({
       type: "large-context",
-      message: "The current context budget is high. Split the task or use a more specific module name."
+      message: "当前上下文预算偏高。请拆分任务或使用更具体的模块名称。"
     });
+  }
+
+  for (const binding of bindingContext.selected || []) {
+    if (binding.status === "missing") {
+      warnings.push({
+        type: "missing-project-binding",
+        message: `任务命中 ${binding.pack}:${binding.capability}，但没有可用的项目文档绑定。`
+      });
+    }
+
+    if (binding.status === "inferred") {
+      warnings.push({
+        type: "unconfirmed-project-binding",
+        message: `任务命中 ${binding.pack}:${binding.capability}，但其项目文档绑定仅为推断结果，需要确认。`
+      });
+    }
   }
 
   return warnings;
@@ -267,52 +287,52 @@ function estimateContextConfidence(intent, resolvedContext, requiredFiles, misse
 
 function summarizeContextQuality(confidence, requiredFiles, missedSignals, warnings) {
   if (requiredFiles.length === 0) {
-    return "No stable required files were selected. Narrow the task or add project-specific context.";
+    return "未选择稳定的必读文件。请收窄任务或补充项目级上下文。";
   }
 
   if (missedSignals.length > 0) {
-    return "Context is usable, but some semantic signals are not covered. Review missedSignals before execution.";
+    return "上下文可以使用，但部分语义信号未被覆盖。执行前请复核 missedSignals。";
   }
 
   if (warnings.length > 0) {
-    return "Context is usable with moderate confidence. Review warnings and confirm the scope is not too broad.";
+    return "上下文可用，但置信度中等。请复核警告并确认范围不过宽。";
   }
 
   if (confidence >= 0.75) {
-    return "Context selection is stable. Follow readingOrder and expand optionalFiles only as needed.";
+    return "上下文选择稳定。请遵循 readingOrder，仅在需要时扩展 optionalFiles。";
   }
 
-  return "Context is usable. Keep validation small and evidence-backed.";
+  return "上下文可用。请保持验证范围最小且有证据支撑。";
 }
 
 function recommendContextActions(confidence, workspace, resolvedContext, requiredFiles, optionalFiles, missedSignals, tokenBudget) {
   const actions = [];
 
   if (resolvedContext.resolver.anchors.fallbackToWorkspace) {
-    actions.push("Add a specific package, feature, page, API, or file name to the task.");
+    actions.push("请在任务中补充具体包、功能、页面、API 或文件名。");
     const anchors = suggestRefinementAnchors(workspace).slice(0, 4);
     if (anchors.length > 0) {
-      actions.push(`Try one of these discovered anchors: ${anchors.join(", ")}.`);
+      actions.push(`可使用以下已发现锚点之一：${anchors.join(", ")}。`);
     }
   }
 
   if (requiredFiles.length === 0) {
-    actions.push("Run ctx discover to inspect semanticEntrypoints, then generate a new packet with a more specific task.");
+    actions.push("运行 ctx discover 查看 semanticEntrypoints，再使用更具体的任务生成新 Packet。");
   }
 
   if (missedSignals.length > 0) {
-    actions.push("Review missedSignals.candidateFiles and add confirmed relevant files to the reading set.");
+    actions.push("复核 missedSignals.candidateFiles，并将确认相关的文件加入阅读集。");
   }
 
   if (optionalFiles.length > 0 && confidence < 0.75) {
-    actions.push("Expand optionalFiles gradually by score instead of reading every candidate at once.");
+    actions.push("按评分逐步扩展 optionalFiles，不要一次读取所有候选文件。");
   }
 
   if (["large", "too-large"].includes(tokenBudget.level)) {
-    actions.push("Split the task into a single module or behavior before generating another Context Packet.");
+    actions.push("在生成下一份 Context Packet 前，将任务拆分为单一模块或行为。");
   }
 
-  return actions.length > 0 ? actions : ["Follow readingOrder and gather more evidence before widening the edit scope."];
+  return actions.length > 0 ? actions : ["遵循 readingOrder，并在扩大修改范围前收集更多证据。"];
 }
 
 function createRefinementHints(workspace, resolvedContext, missedSignals) {

@@ -2,6 +2,8 @@ import { existsSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { createContextPacket } from "../context/packet.js";
 import { createDoctorReport } from "../diagnostics/doctor.js";
+import { adaptProjectBindings } from "../adapters/project/bindings.js";
+import { removeCodexSkillProjections, syncCodexSkillProjections } from "../editors/codex-skills.js";
 import { listEditorIntegrations, setupEditors, teardownEditors } from "../editors/rules.js";
 import { setupProjectKit, setupStarterKit, updateProjectKit } from "../project-kit/index.js";
 import { analyzeWorkspace } from "../reports/analyze.js";
@@ -12,7 +14,7 @@ import { hasFlag, initializeWorkspace, parseEditorSelection, parseTemplateSelect
 import { templateRegistry } from "../registries/index.js";
 
 function listTemplates() {
-  console.log("auto         Detect the best template from the current project.");
+  console.log("auto         根据当前项目检测最合适的模板。");
   for (const template of templateRegistry) {
     console.log(`${template.id.padEnd(12)} ${template.description}`);
   }
@@ -21,9 +23,9 @@ function listTemplates() {
 function createCommands(cwd, args) {
   const commands = {
       help() {
-        console.log(`Context Engineering CLI
+        console.log(`工程上下文 CLI
     
-      Usage:
+      用法：
       ctx help
       ctx version
       ctx doctor
@@ -33,6 +35,7 @@ function createCommands(cwd, args) {
       ctx setup --list-editors
       ctx setup --list-templates
       ctx update [--template auto|minimal|frontend|backend|monorepo]
+      ctx adapt
       ctx teardown [--purge]
       ctx discover
       ctx analyze
@@ -41,20 +44,21 @@ function createCommands(cwd, args) {
       ctx go [--explain] [--template auto|minimal|frontend|backend|monorepo] [--editors codex|cursor|all|codex,cursor,...] <task>
       ctx sessions [--latest] [--id <sessionId>] [--packet]
     
-    Commands:
-      help      Show this help.
-      version   Show CLI version.
-      doctor    Validate workspace skeleton.
-      init      Initialize workspace metadata.
-      setup     Initialize metadata and add editor-native context rules. Use --interactive for guided setup.
-      update    Refresh Cortexa adapter snapshots and add missing project specs, skills, and agents.
-      teardown  Remove Cortexa-managed editor rules without touching project code.
-      discover  Inspect workspace shape.
-      analyze   Generate project structure and risk reports under .cortexa/reports.
-      audit     Check Cortexa context assets and snapshot freshness.
-      pack      Build a minimal context packet. Use --explain to include quality diagnostics.
-      go        One-command setup/update and context packet creation for a task.
-      sessions  Show recorded runtime sessions and packet cache refs.
+    命令：
+      help      显示本帮助。
+      version   显示 CLI 版本。
+      doctor    校验工作区基础结构。
+      init      初始化工作区元数据。
+      setup     初始化元数据并添加编辑器原生上下文规则；使用 --interactive 进入引导式 setup。
+      update    刷新 Cortexa Adapter 快照，并补齐缺失的项目 Spec、Skill 和 Agent。
+      adapt     推断 Pack 到项目文档的绑定，不覆盖已确认映射。
+      teardown  移除 Cortexa 受管编辑器规则，不触碰项目代码。
+      discover  检查工作区结构。
+      analyze   在 .cortexa/reports 下生成项目结构与风险报告。
+      audit     检查 Cortexa 上下文资产和快照新鲜度。
+      pack      构建最小 Context Packet；使用 --explain 包含质量诊断。
+      go        一条命令完成 setup/update 并为任务创建 Context Packet。
+      sessions  显示已记录的运行时会话和 Packet 缓存引用。
     `);
       },
       version() {
@@ -72,7 +76,7 @@ function createCommands(cwd, args) {
       init() {
         try {
           const workspace = initializeWorkspace(cwd, parseTemplateSelection(args));
-          console.log(`initialized ${relative(cwd, workspace.path)} (${workspace.template.id} template)`);
+          console.log(`已初始化 ${relative(cwd, workspace.path)}（${workspace.template.id} 模板）`);
         } catch (error) {
           console.error(error.message);
           process.exitCode = 1;
@@ -101,8 +105,9 @@ function createCommands(cwd, args) {
           const results = setupEditors(cwd, options.editors);
           const projectKit = setupProjectKit(cwd, workspace.template);
           const starters = setupStarterKit(cwd, workspace.template);
+          const codexSkills = syncCodexSkillProjections(cwd);
     
-          console.log(`initialized ${relative(cwd, workspace.path)} (${workspace.template.id} template)`);
+          console.log(`已初始化 ${relative(cwd, workspace.path)}（${workspace.template.id} 模板）`);
           for (const result of results) {
             console.log(`${result.editor}: ${result.status} ${result.path}`);
           }
@@ -112,6 +117,9 @@ function createCommands(cwd, args) {
           for (const starter of starters) {
             console.log(`${starter.type} ${starter.id}: ${starter.status} ${starter.path}`);
           }
+          for (const skill of codexSkills) {
+            console.log(`Codex Skill ${skill.id}：${skill.status} ${skill.path}`);
+          }
         } catch (error) {
           console.error(error.message);
           process.exitCode = 1;
@@ -120,11 +128,27 @@ function createCommands(cwd, args) {
       update() {
         try {
           const projectKit = updateProjectKit(cwd, parseTemplateSelection(args));
+          const codexSkills = syncCodexSkillProjections(cwd);
     
-          console.log(`updated ${relative(cwd, projectKit.path)} (${projectKit.template.id} template)`);
+          console.log(`已更新 ${relative(cwd, projectKit.path)}（${projectKit.template.id} 模板）`);
           for (const item of projectKit.results) {
             console.log(`${item.type} ${item.id}: ${item.status} ${item.path}`);
           }
+          for (const skill of codexSkills) {
+            console.log(`Codex Skill ${skill.id}：${skill.status} ${skill.path}`);
+          }
+        } catch (error) {
+          console.error(error.message);
+          process.exitCode = 1;
+        }
+      },
+      adapt() {
+        try {
+          const result = adaptProjectBindings(cwd, discoverWorkspace(cwd));
+          const summary = summarizeBindings(result.manifest.bindings);
+          console.log(`已适配 ${relative(cwd, result.path)}`);
+          console.log(`Pack：${relative(cwd, result.lockPath)}`);
+          console.log(`绑定：${summary.confirmed} 已确认，${summary.inferred} 推断，${summary.missing} 缺失`);
         } catch (error) {
           console.error(error.message);
           process.exitCode = 1;
@@ -132,9 +156,13 @@ function createCommands(cwd, args) {
       },
       teardown() {
         const results = teardownEditors(cwd, { purge: args.includes("--purge") });
+        const codexSkills = removeCodexSkillProjections(cwd);
     
         for (const result of results) {
           console.log(`${result.editor}: ${result.status} ${result.path}`);
+        }
+        for (const skill of codexSkills) {
+            console.log(`Codex Skill ${skill.id}：${skill.status} ${skill.path}`);
         }
       },
       uninstall() {
@@ -146,11 +174,11 @@ function createCommands(cwd, args) {
       analyze() {
         try {
           const result = analyzeWorkspace(cwd);
-          console.log(`analyzed ${result.report.project.name}`);
-          console.log(`json: ${result.paths.json}`);
-          console.log(`markdown: ${result.paths.markdown}`);
+          console.log(`已分析 ${result.report.project.name}`);
+          console.log(`JSON：${result.paths.json}`);
+          console.log(`Markdown：${result.paths.markdown}`);
           console.log(
-            `summary: ${result.report.structure.sourceFileCount} files, ${result.report.structure.packageCount} packages, ${result.report.structure.featureCount} features, ${result.report.riskBoundaries.length} risks`
+            `汇总：${result.report.structure.sourceFileCount} 个文件，${result.report.structure.packageCount} 个包，${result.report.structure.featureCount} 个功能，${result.report.riskBoundaries.length} 项风险`
           );
         } catch (error) {
           console.error(error.message);
@@ -160,11 +188,11 @@ function createCommands(cwd, args) {
       audit() {
         try {
           const result = auditWorkspace(cwd);
-          console.log(`audited ${result.report.project.name}`);
-          console.log(`status: ${result.report.status}`);
-          console.log(`json: ${result.paths.json}`);
-          console.log(`markdown: ${result.paths.markdown}`);
-          console.log(`summary: ${result.report.summary.pass} pass, ${result.report.summary.warn} warn, ${result.report.summary.fail} fail`);
+          console.log(`已审计 ${result.report.project.name}`);
+          console.log(`状态：${result.report.status}`);
+          console.log(`JSON：${result.paths.json}`);
+          console.log(`Markdown：${result.paths.markdown}`);
+          console.log(`汇总：${result.report.summary.pass} 通过，${result.report.summary.warn} 警告，${result.report.summary.fail} 失败`);
           if (result.report.status === "fail") {
             process.exitCode = 1;
           }
@@ -214,6 +242,16 @@ function createCommands(cwd, args) {
   };
 
   return commands;
+}
+
+function summarizeBindings(bindings) {
+  return (bindings || []).reduce(
+    (summary, binding) => {
+      summary[binding.status] = (summary[binding.status] || 0) + 1;
+      return summary;
+    },
+    { confirmed: 0, inferred: 0, missing: 0 }
+  );
 }
 
 function taskArgs(args) {
@@ -274,10 +312,12 @@ function ensureReadyWorkspace(cwd, args) {
     setupEditors(cwd, parseEditorSelection(args));
     setupProjectKit(cwd, workspace.template);
     setupStarterKit(cwd, workspace.template);
+    syncCodexSkillProjections(cwd);
     return;
   }
 
   updateProjectKit(cwd, parseTemplateSelection(args));
+  syncCodexSkillProjections(cwd);
 }
 
 export async function runCli(argv = process.argv, cwd = process.cwd()) {
@@ -286,7 +326,7 @@ export async function runCli(argv = process.argv, cwd = process.cwd()) {
   const commands = createCommands(cwd, args);
 
   if (!commands[command]) {
-    console.error(`Unknown command: ${command}`);
+    console.error(`未知命令：${command}`);
     process.exitCode = 1;
     return;
   }

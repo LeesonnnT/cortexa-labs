@@ -8,10 +8,10 @@ export function createDoctorReport(root) {
   const checks = [
     nodeRuntimeCheck(),
     npmRuntimeCheck(),
-    fileCheck(root, "package.json", "project.package-json", "warn", "package.json helps Cortexa detect scripts, dependencies, and workspace packages."),
-    fileCheck(root, ".cortexa/workspace.json", "cortexa.workspace", "warn", "Run ctx setup before relying on ctx pack or editor integrations."),
-    fileCheck(root, ".cortexa/context-manifest.json", "cortexa.manifest", "warn", "Run ctx setup or ctx update to create lifecycle metadata."),
-    fileCheck(root, ".cortexa/contexts/context-packet.schema.json", "cortexa.packet-schema", "warn", "Run ctx update to refresh Context Packet schema metadata.")
+    fileCheck(root, "package.json", "project.package-json", "warn", "package.json 用于帮助 Cortexa 识别脚本、依赖和工作区包。"),
+    fileCheck(root, ".cortexa/workspace.json", "cortexa.workspace", "warn", "依赖 ctx pack 或编辑器集成前，请运行 ctx setup。"),
+    fileCheck(root, ".cortexa/context-manifest.json", "cortexa.manifest", "warn", "请运行 ctx setup 或 ctx update 创建生命周期元数据。"),
+    fileCheck(root, ".cortexa/contexts/context-packet.schema.json", "cortexa.packet-schema", "warn", "请运行 ctx update 刷新 Context Packet schema 元数据。")
   ];
   const summary = summarizeChecks(checks);
 
@@ -45,9 +45,9 @@ function nodeRuntimeCheck() {
     id: "runtime.node",
     status: ok ? "pass" : "fail",
     severity: ok ? "info" : "fail",
-    title: "Node.js runtime",
-    message: ok ? `Node ${process.version} satisfies >=18.` : `Node ${process.version} is too old. Cortexa requires Node >=18.`,
-    suggestion: ok ? null : "Install Node.js 18 or newer before running Cortexa.",
+    title: "Node.js 运行时",
+    message: ok ? `Node ${process.version} 满足 >=18 的要求。` : `Node ${process.version} 版本过低，Cortexa 要求 Node >=18。`,
+    suggestion: ok ? null : "运行 Cortexa 前请安装 Node.js 18 或更高版本。",
     details: {
       version: process.version,
       required: ">=18"
@@ -63,16 +63,16 @@ function npmRuntimeCheck() {
   });
   const ok = result.status === 0;
   const message = ok
-    ? `npm ${result.stdout.trim()} is available.`
-    : "npm was not found. npm is required for npm create cortexa@latest and npm-based release checks.";
+    ? `npm ${result.stdout.trim()} 可用。`
+    : "未找到 npm。运行 npm create cortexa@latest 和基于 npm 的发布检查需要 npm。";
 
   return {
     id: "runtime.npm",
     status: ok ? "pass" : "warn",
     severity: ok ? "info" : "warn",
-    title: "npm runtime",
+    title: "npm 运行时",
     message,
-    suggestion: ok ? null : "Install Node.js with npm, or ensure npm is available on PATH.",
+    suggestion: ok ? null : "请安装包含 npm 的 Node.js，或确保 npm 位于 PATH 中。",
     details: {
       command: npm.display,
       version: ok ? result.stdout.trim() : null,
@@ -115,8 +115,8 @@ function fileCheck(root, path, id, missingSeverity, missingMessage) {
     id,
     status: exists ? "pass" : missingSeverity,
     severity: exists ? "info" : missingSeverity,
-    title: `${path} exists`,
-    message: exists ? `${path} exists.` : `${path} is missing. ${missingMessage}`,
+    title: `${path} 是否存在`,
+    message: exists ? `${path} 存在。` : `${path} 不存在。${missingMessage}`,
     path,
     suggestion: exists ? null : missingMessage
   };
@@ -145,19 +145,19 @@ function recommendActions(checks) {
   const byId = new Map(checks.map((check) => [check.id, check]));
 
   if (byId.get("runtime.node")?.status === "fail") {
-    actions.push("Install Node.js 18 or newer.");
+    actions.push("安装 Node.js 18 或更高版本。");
   }
 
   if (byId.get("runtime.npm")?.status !== "pass") {
-    actions.push("Install npm or add it to PATH before using npm create cortexa@latest.");
+    actions.push("使用 npm create cortexa@latest 前，请安装 npm 或将其加入 PATH。");
   }
 
   if (byId.get("cortexa.workspace")?.status !== "pass" || byId.get("cortexa.manifest")?.status !== "pass") {
-    actions.push("Run ctx setup --template auto --editors codex to initialize Cortexa assets.");
+    actions.push("运行 ctx setup --template auto --editors codex 初始化 Cortexa 资产。");
   }
 
   if (actions.length === 0) {
-    actions.push("Environment and Cortexa assets look ready.");
+    actions.push("环境和 Cortexa 资产已就绪。");
   }
 
   return actions;

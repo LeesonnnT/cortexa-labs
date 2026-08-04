@@ -1,3 +1,3 @@
-# Dashboard
+# 可视化面板
 
-未来用于查看 workspace 上下文、Repo Graph、Context Packet 和项目上下文资产的可视化入口。
+未来用于查看工作区上下文、仓库图谱、Context Packet 和项目上下文资产的可视化入口。

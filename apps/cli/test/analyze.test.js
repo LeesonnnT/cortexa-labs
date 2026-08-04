@@ -24,7 +24,7 @@ test("ctx analyze writes latest JSON and Markdown reports", () => {
     assert.ok(result.report.structure.sourceFileCount >= 3);
     assert.ok(result.report.entrypoints.some((entrypoint) => entrypoint.path === "src/App.tsx"));
     assert.ok(result.report.riskBoundaries.some((risk) => risk.area === "api-client"));
-    assert.match(readFileSync(markdownPath, "utf8"), /# Cortexa Analyze Report/);
+    assert.match(readFileSync(markdownPath, "utf8"), /# Cortexa 项目分析报告/);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

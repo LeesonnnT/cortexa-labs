@@ -23,7 +23,7 @@ test("ctx audit reports missing Cortexa assets and writes latest reports", () =>
     assert.ok(result.report.checks.some((check) => check.id === "core.workspace" && check.status === "fail"));
     assert.ok(existsSync(join(root, result.paths.json)));
     assert.ok(existsSync(join(root, result.paths.markdown)));
-    assert.match(readFileSync(join(root, result.paths.markdown), "utf8"), /# Cortexa Audit Report/);
+    assert.match(readFileSync(join(root, result.paths.markdown), "utf8"), /# Cortexa 资产审计报告/);
   } finally {
     removeFixture(root);
   }

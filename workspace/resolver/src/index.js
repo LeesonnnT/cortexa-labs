@@ -78,22 +78,22 @@ export function resolveTaskFiles(task, workspace, scope = []) {
   }
 
   for (const entrypoint of anchors.entrypoints) {
-    add(entrypoint.path, 18, `task names entrypoint ${entrypoint.path}`, "entrypoint");
+    add(entrypoint.path, 18, `任务命中入口 ${entrypoint.path}`, "entrypoint");
   }
 
   for (const pkg of anchors.packages) {
     for (const file of filesUnder(sourceFiles, pkg.path)) {
-      add(file, 3, `inside task-matched package ${pkg.path}`, "package-boundary");
+      add(file, 3, `位于任务命中的包 ${pkg.path} 中`, "package-boundary");
     }
 
     for (const entrypoint of pkg.entrypoints || []) {
-      add(entrypoint, 14, `entrypoint for task-matched package ${pkg.path}`, "package-entrypoint");
+      add(entrypoint, 14, `任务命中的包 ${pkg.path} 的入口`, "package-entrypoint");
     }
   }
 
   for (const feature of anchors.features) {
     for (const file of feature.files || filesUnder(sourceFiles, feature.path)) {
-      add(file, 12, `inside task-matched feature ${feature.path}`, "feature");
+      add(file, 12, `位于任务命中的功能 ${feature.path} 中`, "feature");
     }
   }
 
@@ -127,10 +127,10 @@ export function resolveTaskFiles(task, workspace, scope = []) {
     const from = candidateScores.get(edge.from);
     const to = candidateScores.get(edge.to);
     if (from && !to) {
-      add(edge.to, Math.min(3, Math.max(1, Math.floor(from.score * 0.2))), `imported by ${edge.from}; may affect the same call chain`, "source-graph");
+      add(edge.to, Math.min(3, Math.max(1, Math.floor(from.score * 0.2))), `被 ${edge.from} 导入；可能影响同一调用链`, "source-graph");
     }
     if (to && !from) {
-      add(edge.from, Math.min(3, Math.max(1, Math.floor(to.score * 0.2))), `imports ${edge.to}; may be an upstream entrypoint`, "source-graph");
+      add(edge.from, Math.min(3, Math.max(1, Math.floor(to.score * 0.2))), `导入 ${edge.to}；可能是上游入口`, "source-graph");
     }
   }
 
@@ -276,35 +276,35 @@ export function classifySourceFile(path) {
   const value = path.toLowerCase();
 
   if (value.includes("router") || value.includes("route") || value.includes("permission")) {
-    return { weight: 9, roles: ["routing", "auth"], keywords: ["router", "route", "redirect", "permission"], reason: "routing or auth entrypoint can control page access" };
+    return { weight: 9, roles: ["routing", "auth"], keywords: ["router", "route", "redirect", "permission"], reason: "路由或鉴权入口可能控制页面访问" };
   }
 
   if (value.includes("controller") || value.includes("handler") || value.includes("server/") || value.includes("routes/")) {
-    return { weight: 10, roles: ["server", "request"], keywords: ["server", "controller", "handler", "route"], reason: "server API handler can directly affect request behavior" };
+    return { weight: 10, roles: ["server", "request"], keywords: ["server", "controller", "handler", "route"], reason: "服务端 API 处理器可能直接影响请求行为。" };
   }
 
   if (value.includes("request") || value.includes("api") || value.includes("service") || value.includes("http")) {
-    return { weight: 9, roles: ["request"], keywords: ["api", "request", "response", "http", "service"], reason: "request layer may carry API and error-handling behavior" };
+    return { weight: 9, roles: ["request"], keywords: ["api", "request", "response", "http", "service"], reason: "请求层可能承载 API 和错误处理行为" };
   }
 
   if (value.includes("store") || value.includes("state") || value.includes("user")) {
-    return { weight: 8, roles: ["state", "auth"], keywords: ["store", "state", "user", "auth", "token"], reason: "state layer may maintain user state or token lifecycle" };
+    return { weight: 8, roles: ["state", "auth"], keywords: ["store", "state", "user", "auth", "token"], reason: "状态层可能维护用户状态或 Token 生命周期" };
   }
 
   if (value.includes("auth") || value.includes("token") || value.includes("login")) {
-    return { weight: 10, roles: ["auth"], keywords: ["auth", "token", "login", "signin"], reason: "auth-related file directly affects task behavior" };
+    return { weight: 10, roles: ["auth"], keywords: ["auth", "token", "login", "signin"], reason: "鉴权相关文件会直接影响任务行为" };
   }
 
   if (value.includes("views") || value.includes("pages") || value.includes("component")) {
-    return { weight: 7, roles: ["view"], keywords: ["view", "views", "page", "pages", "component"], reason: "visible entrypoint may carry user-triggered behavior" };
+    return { weight: 7, roles: ["view"], keywords: ["view", "views", "page", "pages", "component"], reason: "可见入口可能承载用户触发的行为" };
   }
 
   if (value.includes("/commands/") || value.includes("command") || value.endsWith("src/index.js")) {
-    return { weight: 8, roles: ["command"], keywords: ["ctx", "cli", "pack", "command"], reason: "CLI command entrypoint may carry task behavior" };
+    return { weight: 8, roles: ["command"], keywords: ["ctx", "cli", "pack", "command"], reason: "CLI 命令入口可能承载任务行为" };
   }
 
   if (value.includes("test") || value.includes("spec")) {
-    return { weight: 6, roles: ["test"], keywords: ["test", "spec"], reason: "test file can validate or extend coverage" };
+    return { weight: 6, roles: ["test"], keywords: ["test", "spec"], reason: "测试文件可用于验证或补充覆盖" };
   }
 
   return { weight: 0, roles: [], keywords: [], reason: "" };
@@ -526,7 +526,7 @@ function scorePathAgainstTerms(path, aliases, noisyTerms) {
 
   return {
     score,
-    reason: matched.length > 0 ? `path matches task anchors ${matched.slice(0, 3).join(", ")}` : ""
+    reason: matched.length > 0 ? `路径命中任务锚点 ${matched.slice(0, 3).join(", ")}` : ""
   };
 }
 
@@ -540,13 +540,13 @@ function scoreContentPreview(root, path, terms) {
 
   return {
     score: Math.min(8, matched.length * 2),
-    reason: matched.length > 0 ? `file content matches task anchors ${matched.slice(0, 3).join(", ")}` : ""
+    reason: matched.length > 0 ? `文件内容命中任务锚点 ${matched.slice(0, 3).join(", ")}` : ""
   };
 }
 
 function summarizeCandidateEvidence(candidate) {
   const topEvidence = candidate.evidence.slice(0, 3).map((item) => `${item.source}+${item.score}`);
-  return `${candidate.reason}; score ${candidate.score}; evidence ${topEvidence.join(", ")}`;
+  return `${candidate.reason}；评分 ${candidate.score}；证据 ${topEvidence.join(", ")}`;
 }
 
 function sourcePriority(path) {

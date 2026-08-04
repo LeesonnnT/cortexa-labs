@@ -68,7 +68,7 @@ test("npm create cortexa can build an initial Context Packet", () => {
     });
 
     assert.equal(initResult.status, 0, initResult.stderr || initResult.stdout);
-    assert.match(initResult.stdout, /Building initial Context Packet/);
+    assert.match(initResult.stdout, /正在构建初始 Context Packet/);
     assert.match(initResult.stdout, /"task": "update settings page"/);
     assert.match(initResult.stdout, /"phaseTransition"/);
   } finally {

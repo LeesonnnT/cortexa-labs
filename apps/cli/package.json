@@ -1,7 +1,7 @@
 {
   "name": "@cortexa-labs/cli",
   "version": "0.5.7",
-  "description": "Context-first CLI for AI workspace engineering.",
+  "description": "面向 AI 工作区工程的上下文优先 CLI。",
   "type": "module",
   "license": "MIT",
   "author": "Leeson",

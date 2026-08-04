@@ -113,35 +113,35 @@ export function classifySourceFile(path) {
   const value = path.toLowerCase();
 
   if (value.includes("router") || value.includes("route") || value.includes("permission")) {
-    return { weight: 9, roles: ["routing", "auth"], keywords: ["router", "route", "redirect", "permission"], reason: "routing or auth entrypoint can control page access" };
+    return { weight: 9, roles: ["routing", "auth"], keywords: ["router", "route", "redirect", "permission"], reason: "路由或鉴权入口可能控制页面访问。" };
   }
 
   if (value.includes("controller") || value.includes("handler") || value.includes("server/") || value.includes("routes/")) {
-    return { weight: 10, roles: ["server", "request"], keywords: ["server", "controller", "handler", "route"], reason: "server API handler can directly affect request behavior" };
+    return { weight: 10, roles: ["server", "request"], keywords: ["server", "controller", "handler", "route"], reason: "服务端 API 处理器可能直接影响请求行为。" };
   }
 
   if (value.includes("request") || value.includes("api") || value.includes("service") || value.includes("http")) {
-    return { weight: 9, roles: ["request"], keywords: ["api", "request", "response", "http", "service"], reason: "request layer may carry API and error-handling behavior" };
+    return { weight: 9, roles: ["request"], keywords: ["api", "request", "response", "http", "service"], reason: "请求层可能承载 API 与错误处理行为。" };
   }
 
   if (value.includes("store") || value.includes("state") || value.includes("user")) {
-    return { weight: 8, roles: ["state", "auth"], keywords: ["store", "state", "user", "auth", "token"], reason: "state layer may maintain user state or token lifecycle" };
+    return { weight: 8, roles: ["state", "auth"], keywords: ["store", "state", "user", "auth", "token"], reason: "状态层可能维护用户状态或 Token 生命周期。" };
   }
 
   if (value.includes("auth") || value.includes("token") || value.includes("login")) {
-    return { weight: 10, roles: ["auth"], keywords: ["auth", "token", "login", "signin"], reason: "auth-related file directly affects task behavior" };
+    return { weight: 10, roles: ["auth"], keywords: ["auth", "token", "login", "signin"], reason: "鉴权相关文件会直接影响任务行为。" };
   }
 
   if (value.includes("views") || value.includes("pages") || value.includes("component")) {
-    return { weight: 7, roles: ["view"], keywords: ["view", "views", "page", "pages", "component"], reason: "visible entrypoint may carry user-triggered behavior" };
+    return { weight: 7, roles: ["view"], keywords: ["view", "views", "page", "pages", "component"], reason: "可见入口可能承载用户触发的行为。" };
   }
 
   if (value.includes("/commands/") || value.includes("command") || value.endsWith("src/index.js")) {
-    return { weight: 8, roles: ["command"], keywords: ["ctx", "cli", "pack", "command"], reason: "CLI command entrypoint may carry task behavior" };
+    return { weight: 8, roles: ["command"], keywords: ["ctx", "cli", "pack", "command"], reason: "CLI 命令入口可能承载任务行为。" };
   }
 
   if (value.includes("test") || value.includes("spec")) {
-    return { weight: 6, roles: ["test"], keywords: ["test", "spec"], reason: "test file can validate or extend coverage" };
+    return { weight: 6, roles: ["test"], keywords: ["test", "spec"], reason: "测试文件可验证或扩展覆盖范围。" };
   }
 
   return { weight: 0, roles: [], keywords: [], reason: "" };

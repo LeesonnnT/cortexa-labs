@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { discoverWorkspace } from "../workspace/discovery.js";
+import { adaptProjectBindings } from "../adapters/project/bindings.js";
 import { createOwnershipMap } from "../workspace/ownership.js";
 import { readJson, writeIfMissing, writeJson } from "../core/fs.js";
 import { resolveTemplate } from "../setup/options.js";
@@ -92,6 +93,19 @@ export function updateProjectKit(root, templateValue = "auto") {
 
 export function writeProjectKit(root, discovery, template, options = {}) {
   const results = writeRuntimeStructure(root, discovery, template);
+  const bindingResult = adaptProjectBindings(root, discovery);
+  results.push({
+    type: "binding",
+    id: "project-bindings",
+    path: relative(root, bindingResult.path),
+    status: "updated"
+  });
+  results.push({
+    type: "pack",
+    id: "packs-lock",
+    path: relative(root, bindingResult.lockPath),
+    status: "updated"
+  });
 
   for (const spec of projectSpecRegistry) {
     const path = join(root, ".cortexa", "specs", spec.id);
@@ -123,7 +137,7 @@ export function writeProjectKit(root, discovery, template, options = {}) {
     });
   }
 
-  writeProjectKitRegistry(root, discovery, template);
+  writeProjectKitRegistry(root, discovery, template, bindingResult.manifest);
   return results;
 }
 
@@ -279,20 +293,20 @@ function createContextManifest(root, discovery, template) {
   const capabilities = detectContextCapabilities(root, discovery);
   const coreLayers = ["agents", "skills", "specs", "contexts", "adapters", "graphs", "runtime", "ownership", "multi-agent"];
   const generatedAssets = {
-    agents: managedAsset("human", "core collaboration entrypoint", false, true, null, false),
-    skills: managedAsset("human", "core engineering capability entrypoint", false, true, null, false),
-    specs: managedAsset("hybrid", "core project conventions with managed adapter snapshots", false, true, null, false),
-    contexts: managedAsset("machine", "Context Packet definitions are required by ctx pack", true, true, null, false),
-    adapters: managedAsset("machine", "adapter discovery snapshot is required by workspace discovery", true, true, null, false),
-    graphs: managedAsset("machine", "repo graph snapshot is required by graph-driven context resolve", true, true, null, false),
-    runtime: managedAsset("machine", "runtime sessions and cache are reserved for task isolation", true, true, null, false),
-    ownership: managedAsset("human", "ownership map guides context boundaries and should preserve team edits", false, true, null, false),
-    "multi-agent": managedAsset("hybrid", "multi-agent collaboration protocol and handoff schema", true, true, null, false),
-    workflows: managedAsset("human", "default Context Flow is useful for all project types", false, true),
+    agents: managedAsset("human", "核心协作入口", false, true, null, false),
+    skills: managedAsset("human", "核心工程能力入口", false, true, null, false),
+    specs: managedAsset("hybrid", "包含受管 adapter 快照的核心项目约定", false, true, null, false),
+    contexts: managedAsset("machine", "ctx pack 需要 Context Packet 定义", true, true, null, false),
+    adapters: managedAsset("machine", "工作区发现需要 adapter 发现快照", true, true, null, false),
+    graphs: managedAsset("machine", "图谱驱动的上下文解析需要仓库图谱快照", true, true, null, false),
+    runtime: managedAsset("machine", "runtime 会话和缓存用于任务隔离", true, true, null, false),
+    ownership: managedAsset("human", "归属映射用于指导上下文边界，且应保留团队编辑", false, true, null, false),
+    "multi-agent": managedAsset("hybrid", "多 Agent 协作协议和交接 schema", true, true, null, false),
+    workflows: managedAsset("human", "默认上下文流转适用于所有项目类型", false, true),
     contracts: managedAsset("human", capabilityReason(capabilities, "contracts"), false, capabilities.includes("contracts"), contractsReadmeDocument()),
     domains: managedAsset("human", capabilityReason(capabilities, "domains"), false, capabilities.includes("domains"), domainsReadmeDocument()),
     memory: managedAsset("human", capabilityReason(capabilities, "memory"), false, capabilities.includes("memory"), memoryReadmeDocument()),
-    reports: managedAsset("machine", "reports are created by analyze, audit, or review commands", true, false, reportsReadmeDocument())
+    reports: managedAsset("machine", "analyze、audit 或 review 命令会生成报告", true, false, reportsReadmeDocument())
   };
   const enabledLayers = [
     ...coreLayers,
@@ -346,10 +360,10 @@ function stripManifestRuntimeFields(manifest) {
 
 function capabilityReason(capabilities, layer) {
   if (capabilities.includes(layer)) {
-    return `detected ${layer} signals in this project`;
+    return `已在当前项目中检测到 ${layer} 信号`;
   }
 
-  return `no ${layer} signals detected yet`;
+  return `暂未检测到 ${layer} 信号`;
 }
 
 function detectContextCapabilities(root, discovery) {
@@ -521,7 +535,7 @@ function ownershipMapSnapshot(discovery) {
   };
 }
 
-function writeProjectKitRegistry(root, discovery, template) {
+function writeProjectKitRegistry(root, discovery, template, bindings) {
   const manifest = readJson(join(root, ".cortexa", "context-manifest.json"));
   writeJson(join(root, ".cortexa", "project-kit.json"), {
     version: 1,
@@ -557,6 +571,13 @@ function writeProjectKitRegistry(root, discovery, template) {
     multiAgent: ["collaboration.md", "protocol.json", "handoff.schema.json"],
     workflows: ["context-flow.md"],
     ownership: ["ownership-map.json"],
+    bindings: {
+      path: ".cortexa/adapters/project-bindings.json",
+      packs: bindings.packs || [],
+      inferred: (bindings.bindings || []).filter((binding) => binding.status === "inferred").length,
+      confirmed: (bindings.bindings || []).filter((binding) => binding.status === "confirmed").length,
+      missing: (bindings.bindings || []).filter((binding) => binding.status === "missing").length
+    },
     enabledLayers: manifest?.enabledLayers || [],
     detectedCapabilities: manifest?.detectedCapabilities || []
   });
@@ -586,12 +607,12 @@ function writeProjectSpec(path, spec, discovery, template, options = {}) {
   if (start !== -1 && end !== -1 && end > start) {
     const afterEnd = end + specSnapshotEnd.length;
     writeFileSync(designPath, `${current.slice(0, start)}${snapshot}${current.slice(afterEnd)}`);
-    statuses[1] = "updated adapter snapshot";
+    statuses[1] = "已更新 adapter 快照";
     return summarizeStatuses(statuses);
   }
 
   writeFileSync(designPath, `${current.trimEnd()}\n\n${snapshot}\n`);
-  statuses[1] = "added adapter snapshot";
+  statuses[1] = "已添加 adapter 快照";
   return summarizeStatuses(statuses);
 }
 

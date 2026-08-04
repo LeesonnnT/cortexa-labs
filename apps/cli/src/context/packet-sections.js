@@ -56,14 +56,14 @@ export function createPhaseTransition(readiness, multiAgent) {
     gate: readiness.status,
     reason:
       nextPhase === "execute"
-        ? "Context Packet is ready to consume."
+        ? "Context Packet 已可直接使用。"
         : nextPhase === "review"
-          ? "Context Packet should be reviewed before execution."
-          : "Task needs narrowing or more evidence before execution."
+          ? "执行前应先复核 Context Packet。"
+          : "任务需要收窄或补充更多证据后再执行。"
   };
 }
 
-export function createReadingOrder(specs, requiredFiles, optionalFiles) {
+export function createReadingOrder(specs, requiredFiles, optionalFiles, projectDocuments = []) {
   const order = [];
 
   for (const spec of specs.slice(0, 3)) {
@@ -71,7 +71,7 @@ export function createReadingOrder(specs, requiredFiles, optionalFiles) {
     order.push({
       path: file,
       type: "spec",
-      reason: `${spec.title || spec.id} defines project constraints for this task.`
+      reason: `${spec.title || spec.id} 定义了本任务的项目约束。`
     });
   }
 
@@ -83,18 +83,26 @@ export function createReadingOrder(specs, requiredFiles, optionalFiles) {
     });
   }
 
+  for (const document of projectDocuments.filter((item) => item.required)) {
+    order.push({
+      path: document.path,
+      type: "project-binding",
+      reason: document.reason
+    });
+  }
+
   for (const file of optionalFiles.slice(0, 3)) {
     order.push({
       path: file.path,
       type: "optional-file",
-      reason: `Read if required context is not enough: ${file.reason}`
+      reason: `必要上下文不足时再读取：${file.reason}`
     });
   }
 
   return order;
 }
 
-export function estimateTokenBudget(root, requiredFiles, optionalFiles, specs, skills, agents, readingOrder) {
+export function estimateTokenBudget(root, requiredFiles, optionalFiles, specs, skills, agents, readingOrder, projectDocuments = []) {
   function estimateFiles(files) {
     return files.reduce((total, file) => total + estimatePathTokens(root, file.path), 0);
   }
@@ -102,8 +110,9 @@ export function estimateTokenBudget(root, requiredFiles, optionalFiles, specs, s
   const requiredTokens = estimateFiles(requiredFiles);
   const optionalTokens = estimateFiles(optionalFiles);
   const specTokens = specs.reduce((total, spec) => total + (spec.files || []).reduce((sum, file) => sum + estimatePathTokens(root, file), 0), 0);
+  const projectDocumentTokens = projectDocuments.filter((document) => document.required).reduce((total, document) => total + estimatePathTokens(root, document.path), 0);
   const instructionTokens = Math.ceil(JSON.stringify({ skills, agents, readingOrder }).length / 4);
-  const total = requiredTokens + specTokens + instructionTokens;
+  const total = requiredTokens + specTokens + projectDocumentTokens + instructionTokens;
   const level = total < 8000 ? "small" : total < 24000 ? "medium" : total < 64000 ? "large" : "too-large";
 
   return {
@@ -113,39 +122,40 @@ export function estimateTokenBudget(root, requiredFiles, optionalFiles, specs, s
       requiredFiles: requiredTokens,
       optionalFiles: optionalTokens,
       specs: specTokens,
+      projectDocuments: projectDocumentTokens,
       instructions: instructionTokens
     },
-    recommendation: level === "small" ? "fits single-agent context" : level === "medium" ? "fits focused context; expand optional files only when needed" : "split the task or run ctx pack with a narrower task"
+    recommendation: level === "small" ? "适合单 Agent 上下文。" : level === "medium" ? "适合聚焦上下文；仅在需要时扩展可选文件。" : "请拆分任务，或使用更具体的任务描述重新运行 ctx pack。"
   };
 }
 
 export function createExecutionPrompt(task, intent, readingOrder, requiredFiles, optionalFiles, riskBoundaries, multiAgent, tokenBudget) {
-  const required = requiredFiles.map((file) => `- ${file.path}: ${file.reason}`).join("\n") || "- No required files were identified; start from the selected scope and specs.";
-  const optional = optionalFiles.slice(0, 5).map((file) => `- ${file.path}: ${file.reason}`).join("\n") || "- No optional expansion files were identified.";
-  const risks = riskBoundaries.map((risk) => `- ${risk.area}: ${risk.guardrail}`).join("\n") || "- Keep changes scoped and verify the closest behavior.";
+  const required = requiredFiles.map((file) => `- ${file.path}: ${file.reason}`).join("\n") || "- 未识别到必读文件；请从已选范围和规范开始。";
+  const optional = optionalFiles.slice(0, 5).map((file) => `- ${file.path}: ${file.reason}`).join("\n") || "- 未识别到可选扩展文件。";
+  const risks = riskBoundaries.map((risk) => `- ${risk.area}: ${risk.guardrail}`).join("\n") || "- 保持变更范围收敛，并验证最接近的行为。";
   const firstReads = readingOrder.slice(0, 8).map((item, index) => `${index + 1}. ${item.path}`).join("\n");
 
   return [
-    `You are working on a ${intent.type} task: ${task}`,
+    `当前任务类型：${intent.type}；任务内容：${task}`,
     "",
-    "Readiness gate:",
-    "- Consume the packet only after checking readiness and phaseTransition.",
+    "可执行性门禁：",
+    "- 检查 readiness 和 phaseTransition 后再使用该 Packet。",
     "",
-    "Read context in this order:",
-    firstReads || "1. Start from the selected scope in the Context Packet.",
+    "按以下顺序读取上下文：",
+    firstReads || "1. 从 Context Packet 选定的范围开始。",
     "",
-    "Required files:",
+    "必读文件：",
     required,
     "",
-    "Optional expansion files:",
+    "可选扩展文件：",
     optional,
     "",
-    "Guardrails:",
+    "约束：",
     risks,
     "",
-    `Recommended agent mode: ${multiAgent.mode}. ${multiAgent.notes}`,
-    `Estimated required context: ${tokenBudget.estimate} tokens (${tokenBudget.level}).`,
-    "Make the smallest evidence-backed change, then run the closest available validation."
+    `建议的 Agent 模式：${multiAgent.mode}。${multiAgent.notes}`,
+    `预估必要上下文：${tokenBudget.estimate} tokens（${tokenBudget.level}）。`,
+    "基于证据做最小变更，并执行最接近的可用验证。"
   ].join("\n");
 }
 

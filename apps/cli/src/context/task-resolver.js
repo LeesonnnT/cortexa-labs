@@ -30,22 +30,22 @@ export function resolveTaskFiles(task, workspace, scope) {
   }
 
   for (const entrypoint of anchors.entrypoints) {
-    add(entrypoint.path, 18, `task names entrypoint ${entrypoint.path}`, "entrypoint");
+    add(entrypoint.path, 18, `任务点名了入口 ${entrypoint.path}`, "entrypoint");
   }
 
   for (const pkg of anchors.packages) {
     for (const file of filesUnder(sourceFiles, pkg.path)) {
-      add(file, 3, `inside task-matched package ${pkg.path}`, "package-boundary");
+      add(file, 3, `位于任务命中的包 ${pkg.path} 中`, "package-boundary");
     }
 
     for (const entrypoint of pkg.entrypoints || []) {
-      add(entrypoint, 14, `entrypoint for task-matched package ${pkg.path}`, "package-entrypoint");
+      add(entrypoint, 14, `任务命中的包 ${pkg.path} 的入口`, "package-entrypoint");
     }
   }
 
   for (const feature of anchors.features) {
     for (const file of feature.files || filesUnder(sourceFiles, feature.path)) {
-      add(file, 12, `inside task-matched feature ${feature.path}`, "feature");
+      add(file, 12, `位于任务命中的功能 ${feature.path} 中`, "feature");
     }
   }
 
@@ -79,10 +79,10 @@ export function resolveTaskFiles(task, workspace, scope) {
     const from = candidateScores.get(edge.from);
     const to = candidateScores.get(edge.to);
     if (from && !to) {
-      add(edge.to, Math.min(3, Math.max(1, Math.floor(from.score * 0.2))), `imported by ${edge.from}; may affect the same call chain`, "source-graph");
+      add(edge.to, Math.min(3, Math.max(1, Math.floor(from.score * 0.2))), `被 ${edge.from} 导入，可能影响同一调用链`, "source-graph");
     }
     if (to && !from) {
-      add(edge.from, Math.min(3, Math.max(1, Math.floor(to.score * 0.2))), `imports ${edge.to}; may be an upstream entrypoint`, "source-graph");
+      add(edge.from, Math.min(3, Math.max(1, Math.floor(to.score * 0.2))), `导入 ${edge.to}，可能是上游入口`, "source-graph");
     }
   }
 
@@ -231,7 +231,7 @@ function scorePathAgainstTerms(path, aliases, noisyTerms) {
 
   return {
     score,
-    reason: matched.length > 0 ? `path matches task anchors ${matched.slice(0, 3).join(", ")}` : ""
+    reason: matched.length > 0 ? `路径命中任务锚点 ${matched.slice(0, 3).join(", ")}` : ""
   };
 }
 
@@ -245,13 +245,13 @@ function scoreContentPreview(root, path, terms) {
 
   return {
     score: Math.min(8, matched.length * 2),
-    reason: matched.length > 0 ? `file content matches task anchors ${matched.slice(0, 3).join(", ")}` : ""
+    reason: matched.length > 0 ? `文件内容命中任务锚点 ${matched.slice(0, 3).join(", ")}` : ""
   };
 }
 
 function summarizeCandidateEvidence(candidate) {
   const topEvidence = candidate.evidence.slice(0, 3).map((item) => `${item.source}+${item.score}`);
-  return `${candidate.reason}; score ${candidate.score}; evidence ${topEvidence.join(", ")}`;
+  return `${candidate.reason}；评分 ${candidate.score}；证据 ${topEvidence.join(", ")}`;
 }
 
 function sourcePriority(path) {

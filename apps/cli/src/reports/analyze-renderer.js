@@ -1,42 +1,42 @@
 export function renderAnalyzeMarkdown(report) {
   const lines = [
-    "# Cortexa Analyze Report",
+    "# Cortexa 项目分析报告",
     "",
-    `Generated: ${report.generatedAt}`,
+    `生成时间：${report.generatedAt}`,
     "",
-    "## Project",
+    "## 项目",
     "",
-    `- Name: ${report.project.name}`,
-    `- Workspace: ${report.project.workspace}`,
-    `- Package manager: ${report.project.packageManager}`,
-    `- Frameworks: ${formatList(report.project.frameworks)}`,
-    `- Adapters: ${formatList(report.project.adapters)}`,
+    `- 名称：${report.project.name}`,
+    `- 工作区：${report.project.workspace}`,
+    `- 包管理器：${report.project.packageManager}`,
+    `- 框架：${formatList(report.project.frameworks)}`,
+    `- Adapter：${formatList(report.project.adapters)}`,
     "",
-    "## Structure",
+    "## 结构",
     "",
-    `- Source files: ${report.structure.sourceFileCount}`,
-    `- Source imports: ${report.structure.sourceImportCount}`,
-    `- Packages: ${report.structure.packageCount}`,
-    `- Features: ${report.structure.featureCount}`,
-    `- Entrypoints: ${report.structure.entrypointCount}`,
+    `- 源文件：${report.structure.sourceFileCount}`,
+    `- 源码导入：${report.structure.sourceImportCount}`,
+    `- 包：${report.structure.packageCount}`,
+    `- 功能：${report.structure.featureCount}`,
+    `- 入口：${report.structure.entrypointCount}`,
     "",
-    "## Packages",
+    "## 包",
     "",
     ...formatItems(report.packages.slice(0, 20), (pkg) => `- ${pkg.path} (${pkg.name}, ${pkg.framework})`),
     "",
-    "## Entrypoints",
+    "## 入口",
     "",
     ...formatItems(report.entrypoints.slice(0, 20), (entrypoint) => `- ${entrypoint.path} [${entrypoint.kind}]`),
     "",
-    "## Features",
+    "## 功能",
     "",
     ...formatItems(report.features.slice(0, 20), (feature) => `- ${feature.path} [${feature.kind}] files=${feature.fileCount}`),
     "",
-    "## Risk Boundaries",
+    "## 风险边界",
     "",
     ...formatItems(report.riskBoundaries, (risk) => `- ${risk.area} (${risk.severity}): ${risk.reason}`),
     "",
-    "## Recommendations",
+    "## 建议",
     "",
     ...report.recommendations.map((action) => `- ${action}`),
     ""
@@ -46,9 +46,9 @@ export function renderAnalyzeMarkdown(report) {
 }
 
 function formatList(values) {
-  return values.length > 0 ? values.join(", ") : "none";
+  return values.length > 0 ? values.join(", ") : "无";
 }
 
 function formatItems(values, render) {
-  return values.length > 0 ? values.map(render) : ["- none"];
+  return values.length > 0 ? values.map(render) : ["- 无"];
 }

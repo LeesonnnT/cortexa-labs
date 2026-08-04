@@ -65,7 +65,7 @@ ${agent.recommendedSkills.map((skill) => `- \`${skill}\``).join("\n")}
 ## 协作边界
 
 - 只处理与当前职责匹配的任务范围，不接管其它 agent 的职责。
-- 当任务需要多个 agent 协作时，遵循 \`.cortexa/multi-agent/collaboration.md\` 中的交接协议。
+- 当任务需要多个 Agent 协作时，遵循 \`.cortexa/multi-agent/collaboration.md\` 中的交接协议。
 - 交接时明确当前 scope、已读文件、关键判断、未完成事项和风险。
 
 ## 输出
@@ -150,7 +150,7 @@ status: draft
 }
 
 export function contextsReadmeDocument() {
-  return `# Contexts
+  return `# 上下文
 
 这里存放 Cortexa 的上下文定义、Context Packet 结构说明和任务上下文裁剪规则。
 
@@ -179,9 +179,9 @@ export function contextPacketSchemaDocument() {
       dependencies: { type: "array", description: "生产依赖。" },
       devDependencies: { type: "array", description: "开发依赖。" },
       specs: { type: "array", description: "本任务应读取的项目规范。" },
-      skills: { type: "array", description: "本任务推荐使用的工程技能。" },
-      agents: { type: "array", description: "本任务推荐使用的 agent。" },
-      multiAgent: { type: "object", description: "多 agent 协作模式、交接协议和推荐顺序。" },
+      skills: { type: "array", description: "本任务推荐使用的工程 Skill。" },
+      agents: { type: "array", description: "本任务推荐使用的 Agent。" },
+      multiAgent: { type: "object", description: "多 Agent 协作模式、交接协议和推荐顺序。" },
       readingOrder: { type: "array", description: "推荐阅读顺序。" },
       requiredFiles: { type: "array", description: "必读文件列表。" },
       optionalFiles: { type: "array", description: "可选扩展文件列表。" },
@@ -191,7 +191,7 @@ export function contextPacketSchemaDocument() {
       tokenBudget: { type: "object", description: "上下文 token 预算估算。" },
       qualityGate: { type: "object", description: "上下文质量门禁。" },
       readiness: { type: "object", description: "是否适合直接消费该 Context Packet。" },
-      handoff: { type: "object", description: "多 agent / 编辑器消费时的交接摘要。" },
+      handoff: { type: "object", description: "多 Agent / 编辑器消费时的交接摘要。" },
       phaseTransition: { type: "object", description: "Context Packet 消费后的下一阶段。" },
       generatedAt: { type: "string", format: "date-time" }
     }
@@ -199,20 +199,20 @@ export function contextPacketSchemaDocument() {
 }
 
 export function workflowDocument() {
-  return `# Context Flow
+  return `# 上下文流转
 
 此工作流描述 Cortexa 在工程任务中的默认上下文流转方式。
 
 ## 默认流程
 
-1. Workspace Discovery: 使用 adapter 发现项目结构、框架、包、入口和功能边界。
-2. Repo Graph: 从包、入口、功能和依赖关系生成可裁剪的工程图谱。
-3. Context Resolve: 根据任务选择最小相关 scope、specs 和 skills。
-4. Readiness Gate: 检查 \`qualityGate\` 和 \`readiness\`，确认是否可以直接消费 packet。
-5. Phase Transition: 根据 \`phaseTransition\` 决定执行、复核或收窄任务。
-6. Skill Execution: 使用匹配的 \`.cortexa/skills/<skill>/SKILL.md\` 执行工程能力。
-7. Handoff Summary: 按 \`handoff\` 字段交接给下一个 agent 或编辑器步骤。
-8. Result Summary: 输出变更、验证、风险和需要沉淀到 spec 的问题。
+1. 工作区发现：使用 adapter 发现项目结构、框架、包、入口和功能边界。
+2. 仓库图谱：从包、入口、功能和依赖关系生成可裁剪的工程图谱。
+3. 上下文解析：根据任务选择最小相关 scope、specs 和 skills。
+4. 就绪门禁：检查 \`qualityGate\` 和 \`readiness\`，确认是否可以直接消费 packet。
+5. 阶段流转：根据 \`phaseTransition\` 决定执行、复核或收窄任务。
+6. Skill 执行：使用匹配的 \`.cortexa/skills/<skill>/SKILL.md\` 执行工程能力。
+7. 交接摘要：按 \`handoff\` 字段交接给下一个 Agent 或编辑器步骤。
+8. 结果摘要：输出变更、验证、风险和需要沉淀到 spec 的问题。
 
 ## 隔离原则
 
@@ -225,7 +225,7 @@ export function workflowDocument() {
 }
 
 export function multiAgentReadmeDocument() {
-  return `# Multi Agent
+  return `# 多 Agent 协作
 
 这里存放多 agent 协作的本地协议、角色编排和任务交接约定。
 
@@ -233,7 +233,7 @@ export function multiAgentReadmeDocument() {
 
 - 让多个 agent 在同一个项目中协作时保持上下文隔离。
 - 通过明确的角色边界减少重复扫描、职责重叠和结论冲突。
-- 让任务可以按 explorer、implementer、reviewer、maintainer 等角色拆分。
+- 让任务可以按上下文分析、实现、评审、规范维护等角色拆分。
 
 ## 使用方式
 
@@ -242,40 +242,40 @@ export function multiAgentReadmeDocument() {
 3. 先查看 packet 中的 \`readiness\`，确认该包是否可以直接消费。
 4. 先查看 packet 中的 \`phaseTransition\`，确认下一步是执行、复核还是收窄任务。
 5. 每个 agent 只读取自己需要的 scope、specs 和 skills。
-6. agent 之间通过 packet 中的 \`handoff\` 传递结论，不共享未整理的临时上下文。
+6. Agent 之间通过 packet 中的 \`handoff\` 传递结论，不共享未整理的临时上下文。
 `;
 }
 
 export function multiAgentCollaborationDocument() {
-  return `# Multi Agent Collaboration
+  return `# 多 Agent 协作协议
 
 此协议用于约束多个 agent 在同一工程任务中的协作方式。
 
 ## 协作模式
 
-- \`single\`: 单 agent 处理，适用于范围明确、风险较低的任务。
-- \`pipeline\`: 分阶段处理，常见顺序是 context analyst -> implementation agent -> review agent。
-- \`parallel\`: 多个 agent 并行处理互不重叠的 scope，适用于 monorepo 或跨模块任务。
-- \`review-gate\`: 实现 agent 完成后必须交给 review agent 做风险检查。
+- \`single\`: 单 Agent 处理，适用于范围明确、风险较低的任务。
+- \`pipeline\`: 分阶段处理，常见顺序是上下文分析 Agent -> 实现 Agent -> 评审 Agent。
+- \`parallel\`: 多个 Agent 并行处理互不重叠的 scope，适用于 monorepo 或跨模块任务。
+- \`review-gate\`: 实现 Agent 完成后必须交给评审 Agent 做风险检查。
 
 ## 角色边界
 
-- Context Analyst: 负责理解项目结构、选择 scope、指出依赖和开放问题。
-- Implementation Agent: 负责在最小相关范围内完成实现，不扩散到无关模块。
-- Review Agent: 负责评审行为风险、约定漂移、测试缺口和回归风险。
-- Spec Maintainer: 负责把稳定约定、开放问题和团队决策沉淀到 specs。
+- 上下文分析 Agent：负责理解项目结构、选择 scope、指出依赖和开放问题。
+- 实现 Agent：负责在最小相关范围内完成实现，不扩散到无关模块。
+- 评审 Agent：负责评审行为风险、约定漂移、测试缺口和回归风险。
+- 规范维护 Agent：负责把稳定约定、开放问题和团队决策沉淀到 specs。
 
 ## 交接格式
 
 每次 agent 交接都应包含：
 
-- Task: 当前任务目标。
-- Scope: 已确认的文件、目录、包或功能边界。
-- Inputs: 已读取的 specs、skills、contracts、domains 或 memory。
-- Decisions: 已做出的关键判断。
-- Changes: 已完成的变更或发现。
-- Risks: 仍需关注的风险。
-- Next Agent: 建议接手的 agent 及原因。
+- 任务：当前任务目标。
+- 范围：已确认的文件、目录、包或功能边界。
+- 输入：已读取的 specs、skills、contracts、domains 或 memory。
+- 决策：已做出的关键判断。
+- 变更：已完成的变更或发现。
+- 风险：仍需关注的风险。
+- 下一 Agent：建议接手的 Agent 及原因。
 
 ## 隔离原则
 
@@ -291,7 +291,7 @@ export function multiAgentProtocolDocument(agents = []) {
     version: 1,
     modes: {
       single: {
-        description: "单 agent 处理明确任务。",
+        description: "单 Agent 处理明确任务。",
         maxAgents: 1
       },
       pipeline: {
@@ -319,37 +319,37 @@ export function multiAgentProtocolDocument(agents = []) {
 export function agentHandoffSchemaDocument() {
   return {
     $schema: "https://json-schema.org/draft/2020-12/schema",
-    title: "Cortexa Multi Agent Handoff",
+    title: "Cortexa 多 Agent 交接",
     type: "object",
     required: ["task", "scope", "inputs", "decisions", "changes", "risks", "nextAgent"],
     properties: {
       task: { type: "string", description: "当前任务目标。" },
       scope: { type: "array", items: { type: "string" }, description: "已确认的文件、目录、包或功能边界。" },
-      inputs: { type: "array", items: { type: "string" }, description: "已读取的 specs、skills、contracts、domains 或 memory。" },
+      inputs: { type: "array", items: { type: "string" }, description: "已读取的 specs、Skill、contracts、domains 或 memory。" },
       decisions: { type: "array", items: { type: "string" }, description: "已做出的关键判断。" },
       changes: { type: "array", items: { type: "string" }, description: "已完成的变更或发现。" },
       risks: { type: "array", items: { type: "string" }, description: "仍需关注的风险。" },
-      nextAgent: { type: "string", description: "建议接手的 agent。" }
+      nextAgent: { type: "string", description: "建议接手的 Agent。" }
     }
   };
 }
 
 export function runtimeReadmeDocument() {
-  return `# Runtime
+  return `# 运行时
 
-这里描述 Cortexa workspace runtime 的本地状态约定。
+这里描述 Cortexa 工作区运行时的本地状态约定。
 
 ## 目录
 
 - \`sessions/\`: 任务会话状态预留目录。
-- \`cache/\`: adapter 或 graph 缓存预留目录。
+- \`cache/\`: adapter 或图谱缓存预留目录。
 
 当前 CLI 仍以无状态命令为主，后续可以在这里扩展独立 session、执行状态和缓存生命周期。
 `;
 }
 
 export function sessionsReadmeDocument() {
-  return `# Sessions
+  return `# 会话
 
 此目录预留给任务级 runtime session。
 
@@ -358,27 +358,27 @@ export function sessionsReadmeDocument() {
 }
 
 export function adaptersReadmeDocument() {
-  return `# Adapters
+  return `# 适配器
 
 这里存放 adapter 发现结果和项目结构语义化输出。
 
 - \`discovery.json\`: 最近一次 setup/update 时的项目发现快照。
-- adapter 输出用于生成 specs、graphs 和 Context Packet，不应被手工当作团队约定维护。
+- adapter 输出用于生成 specs、图谱和 Context Packet，不应被手工当作团队约定维护。
 `;
 }
 
 export function graphsReadmeDocument() {
-  return `# Graphs
+  return `# 图谱
 
-这里存放 Repo Graph 相关输出。
+这里存放仓库图谱相关输出。
 
 - \`repo-graph.json\`: 由 adapter 输出整理出的包、入口、功能和依赖图谱。
-- Graph 用于 Context Scope、Dependency Resolve、Feature Isolation 和 Token 裁剪。
+- 图谱用于上下文范围选择、依赖解析、功能隔离和 Token 裁剪。
 `;
 }
 
 export function ownershipReadmeDocument() {
-  return `# Ownership
+  return `# 归属
 
 这里存放上下文归属与边界说明。
 
@@ -388,7 +388,7 @@ export function ownershipReadmeDocument() {
 }
 
 export function contractsReadmeDocument() {
-  return `# Contracts
+  return `# 契约
 
 这里存放项目中的 API、事件、数据模型和权限契约。
 
@@ -406,13 +406,13 @@ export function contractsReadmeDocument() {
 }
 
 export function domainsReadmeDocument() {
-  return `# Domains
+  return `# 业务域
 
 这里存放业务域知识、术语、流程和边界上下文。
 
 ## 适用内容
 
-- 业务模块、bounded context、核心术语和关键流程。
+- 业务模块、限界上下文、核心术语和关键流程。
 - 跨页面、跨服务或跨包共享的业务规则。
 - 影响 Context Scope 选择的业务归属说明。
 
@@ -424,7 +424,7 @@ export function domainsReadmeDocument() {
 }
 
 export function memoryReadmeDocument() {
-  return `# Memory
+  return `# 长期记忆
 
 这里存放长期项目决策、历史约束、迁移背景和已知风险。
 
@@ -442,7 +442,7 @@ export function memoryReadmeDocument() {
 }
 
 export function reportsReadmeDocument() {
-  return `# Reports
+  return `# 报告
 
 这里存放 ctx analyze、ctx audit、ctx review 等命令生成的报告。
 
@@ -460,7 +460,7 @@ export function adapterSnapshot(spec, discovery, template) {
     `工作区: ${discovery.workspace}`,
     `包管理器: ${discovery.packageManager}`,
     `框架: ${formatInlineList(discovery.frameworks)}`,
-    `Adapters: ${formatInlineList(discovery.adapters)}`
+    `适配器: ${formatInlineList(discovery.adapters)}`
   ];
   const packages = discovery.packages.slice(0, 12).map((pkg) => `${pkg.path} (${pkg.name}, ${pkg.framework})`);
   const entrypoints = discovery.semanticEntrypoints.slice(0, 12).map((entrypoint) => `${entrypoint.path} [${entrypoint.kind}]`);
@@ -542,7 +542,7 @@ function specBody(id, discovery) {
 
 - 使用 adapter 发现的包名、入口和命令，不要猜测路径。
 - 文档保持任务导向：安装、运行、验证、扩展、排障。
-- 当规范发生变化时，更新 \`.cortexa/specs/<spec>/\` 下的匹配文件，让后续 agent 继承这些约定。
+- 当规范发生变化时，更新 \`.cortexa/specs/<spec>/\` 下的匹配文件，让后续 Agent 继承这些约定。
 - 将长期有效的项目规则与一次性任务备注分开。
 `;
   }
@@ -556,7 +556,7 @@ function specBody(id, discovery) {
 
 ## 已检测 UI 信号
 
-- 前端框架: ${formatInlineList(discovery.frameworks.filter((framework) => ["vue", "nuxt", "react", "nextjs", "vite"].includes(framework)))}
+- 前端框架：${formatInlineList(discovery.frameworks.filter((framework) => ["vue", "nuxt", "react", "nextjs", "vite"].includes(framework)))}
 - UI 功能候选: ${formatInlineList(discovery.features.map((feature) => feature.path).slice(0, 8))}
 `;
 }

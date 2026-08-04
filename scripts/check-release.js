@@ -13,23 +13,23 @@ const createPackage = readJson(join(root, "apps", "create-cortexa", "package.jso
 const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
 
 const checks = [
-  ["root package metadata", checkRootPackage],
-  ["cli package metadata", checkCliPackage],
-  ["create-cortexa package metadata", checkCreatePackage],
-  ["documentation files", checkDocumentation],
-  ["package source boundaries", checkPackageSourceBoundaries],
-  ["cli smoke test", checkCliSmoke],
-  ["initializer smoke test", checkInitializerSmoke],
-  ["node test suite", checkNodeTests],
-  ["package dry runs", checkPackageDryRuns]
+  ["根包元数据", checkRootPackage],
+  ["CLI 包元数据", checkCliPackage],
+  ["create-cortexa 包元数据", checkCreatePackage],
+  ["文档文件", checkDocumentation],
+  ["包源码边界", checkPackageSourceBoundaries],
+  ["CLI 冒烟测试", checkCliSmoke],
+  ["初始化器冒烟测试", checkInitializerSmoke],
+  ["Node 测试套件", checkNodeTests],
+  ["包干运行检查", checkPackageDryRuns]
 ];
 
 for (const [name, check] of checks) {
   try {
     check();
-    console.log(`ok - ${name}`);
+    console.log(`通过 - ${name}`);
   } catch (error) {
-    console.error(`not ok - ${name}`);
+    console.error(`未通过 - ${name}`);
     console.error(error.message);
     process.exitCode = 1;
     break;
@@ -104,7 +104,7 @@ function checkCliSmoke() {
 
 function checkInitializerSmoke() {
   const result = run(process.execPath, [join(root, "apps", "create-cortexa", "src", "index.js"), "--help"], root);
-  assert.match(result.stdout, /Create Cortexa/);
+  assert.match(result.stdout, /创建 Cortexa/);
 }
 
 function checkNodeTests() {

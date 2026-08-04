@@ -106,31 +106,31 @@ export function selectAgentsForTask(root, task, skills, specs, scope) {
   }
 
   const taskValue = task.toLowerCase();
-  add("project-context-analyst", "Confirm minimal context, package boundaries, feature boundaries, and dependency relationships first.");
+  add("project-context-analyst", "先确认最小上下文、包边界、功能边界和依赖关系。");
 
   if (includesAny(taskValue, ["review", "audit", "inspect", "check", "risk"])) {
-    add("project-review-agent", "Task includes review or risk assessment.");
+    add("project-review-agent", "任务包含评审或风险评估。");
   }
 
   if (includesAny(taskValue, ["spec", "convention", "standard"]) || specs.length > 2) {
-    add("project-spec-maintainer", "Task involves project conventions or multi-spec alignment.");
+    add("project-spec-maintainer", "任务涉及项目约定或多份规范对齐。");
   }
 
   if (includesAny(taskValue, ["implement", "build", "fix", "update", "change", "refactor"])) {
-    add("project-implementation-agent", "Task requires implementation or code changes.");
+    add("project-implementation-agent", "任务需要实现或代码变更。");
   }
 
   if (skills.includes("ui-consistency-review") || includesAny(taskValue, ["frontend", "ui", "component", "style"])) {
-    add("frontend-builder", "Task includes frontend UI or component implementation.");
-    add("frontend-reviewer", "Frontend changes need visible behavior and accessibility review.");
+    add("frontend-builder", "任务包含前端 UI 或组件实现。");
+    add("frontend-reviewer", "前端变更需要评审可见行为和可访问性。");
   }
 
   if (skills.includes("api-contract-review")) {
-    add("frontend-data-integrator", "Task involves requests, state, cache, or API contracts.");
+    add("frontend-data-integrator", "任务涉及请求、状态、缓存或 API 契约。");
   }
 
   if (scope.length > 3 && selected.length === 1) {
-    add("project-implementation-agent", "Scope is broad enough to warrant implementation follow-up.");
+    add("project-implementation-agent", "任务范围较广，需要补充实现跟进。");
   }
 
   return selected.slice(0, 5);
@@ -184,18 +184,18 @@ function orderAgentsForMode(mode, agents) {
 
 function multiAgentNotes(mode) {
   if (mode === "parallel") {
-    return "Assign agents to non-overlapping scopes and run a review gate before merging results.";
+    return "为各 Agent 分配不重叠的范围，并在合并结果前执行评审关口。";
   }
 
   if (mode === "review-gate") {
-    return "After implementation, hand off to a review agent to check behavioral risk, convention drift, and validation gaps.";
+    return "实现完成后交给评审 Agent，检查行为风险、约定漂移和验证缺口。";
   }
 
   if (mode === "pipeline") {
-    return "Follow the recommended order and summarize each handoff with the handoff schema.";
+    return "遵循推荐顺序，并使用交接 schema 总结每次交接。";
   }
 
-  return "A single agent is enough; switch to pipeline or review-gate if scope expands.";
+  return "单个 Agent 足以处理；如果范围扩大，切换到 pipeline 或 review-gate。";
 }
 
 function listProjectSpecs(root) {

@@ -1,19 +1,19 @@
-# Coding Standards
+# 编码规范
 
-## Thin Entry Points
+## 保持入口轻量
 
-CLI, application, and package entry files must stay thin. An entry point may parse process arguments, initialize runtime defaults, delegate to command or application modules, and set top-level process error handling.
+CLI、应用和包的入口文件必须保持轻量。入口可以解析进程参数、初始化运行时默认值、委派给命令或应用模块，并处理顶层进程错误。
 
-Entry points must not become "fat entry" files. They must not contain domain logic, file generation workflows, adapter discovery, business rules, command implementations, or large helper groups that belong to a focused module.
+入口文件不得演变为“臃肿入口”。其中不能堆放领域逻辑、文件生成流程、Adapter 发现、业务规则、命令实现或应属于专用模块的大型辅助函数组。
 
-When an entry file starts to coordinate more than startup concerns, split the behavior by responsibility:
+当入口文件开始协调启动之外的职责时，应按职责拆分：
 
-- `commands/` for CLI command implementations and output formatting.
-- `core/` for shared low-level utilities.
-- `workspace/` for workspace discovery and lifecycle state.
-- `context/` for context packet selection and compilation.
-- `project-kit/` for generated project assets and manifests.
-- `editors/` for editor integration rules.
-- `setup/` for setup option parsing and interactive prompts.
+- `commands/`：CLI 命令实现与输出格式化。
+- `core/`：共享底层工具。
+- `workspace/`：工作区发现与生命周期状态。
+- `context/`：Context Packet 选择与编译。
+- `project-kit/`：生成的项目资产与清单。
+- `editors/`：编辑器集成规则。
+- `setup/`：setup 选项解析与交互提示。
 
-As a practical guardrail, an entry file should usually stay under 100 lines. If it needs more space, prefer extracting a named module before adding more behavior.
+作为实践门槛，入口文件通常应保持在 100 行以内。需要更多空间时，优先提取具名模块，而不是继续堆叠行为。

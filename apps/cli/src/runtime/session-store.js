@@ -102,7 +102,7 @@ export function createRuntimeSession(options = {}) {
   const now = options.now || new Date().toISOString();
   const task = String(options.task || "").trim();
   if (!task) {
-    throw new Error("Runtime session requires a task.");
+    throw new Error("Runtime 会话必须提供任务。");
   }
 
   const contextPacketRef = summarizeContextPacket(options.contextPacket);

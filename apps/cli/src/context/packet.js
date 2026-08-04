@@ -1,4 +1,5 @@
 import { selectContextScope } from "../adapters/project/index.js";
+import { selectBindingsForTask } from "../adapters/project/bindings.js";
 import { discoverWorkspace } from "../workspace/discovery.js";
 import { compileTaskContext } from "./packet-compiler.js";
 import { inferSkills, selectAgentsForTask, selectMultiAgentPlan, selectSkillsForTask, selectSpecsForTask } from "./packet-selection.js";
@@ -33,7 +34,8 @@ export function createContextPacket(root, task, options = {}) {
   const skills = [...new Set([...inferSkills(task), ...selectSkillsForTask(root, task, specs)])];
   const agents = selectAgentsForTask(root, task, skills, specs, scope);
   const multiAgent = selectMultiAgentPlan(task, workspace, scope, agents);
-  const contextCompilation = compileTaskContext(root, task, workspace, scope, specs, skills, agents, multiAgent, intent);
+  const bindingContext = selectBindingsForTask(root, task);
+  const contextCompilation = compileTaskContext(root, task, workspace, scope, specs, skills, agents, multiAgent, intent, bindingContext);
   const readiness = createReadinessBundle(contextCompilation.contextQuality);
   const handoff = createHandoffBundle(task, scope, specs, skills, agents, multiAgent, contextCompilation, readiness);
   const phaseTransition = createPhaseTransition(readiness, multiAgent);
@@ -62,6 +64,8 @@ export function createContextPacket(root, task, options = {}) {
     skills,
     agents,
     multiAgent,
+    projectBindings: bindingContext.selected,
+    projectDocuments: contextCompilation.projectDocuments,
     taskResolver: contextCompilation.taskResolver,
     readingOrder: contextCompilation.readingOrder,
     requiredFiles: contextCompilation.requiredFiles,
@@ -86,15 +90,15 @@ export function validateContextPacketV1(packet) {
   const errors = [];
 
   if (packet?.schema !== CONTEXT_PACKET_SCHEMA) {
-    errors.push(`schema must be ${CONTEXT_PACKET_SCHEMA}`);
+    errors.push(`schema 必须为 ${CONTEXT_PACKET_SCHEMA}`);
   }
 
   if (packet?.schemaVersion !== CONTEXT_PACKET_SCHEMA_VERSION) {
-    errors.push(`schemaVersion must be ${CONTEXT_PACKET_SCHEMA_VERSION}`);
+    errors.push(`schemaVersion 必须为 ${CONTEXT_PACKET_SCHEMA_VERSION}`);
   }
 
   if (missingFields.length > 0) {
-    errors.push(`missing required fields: ${missingFields.join(", ")}`);
+    errors.push(`缺少必填字段：${missingFields.join(", ")}`);
   }
 
   return {

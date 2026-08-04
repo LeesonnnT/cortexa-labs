@@ -1,7 +1,7 @@
 {
   "name": "create-cortexa",
   "version": "0.1.6",
-  "description": "Interactive initializer for Cortexa workspace context.",
+  "description": "用于初始化 Cortexa 工作区上下文的交互式工具。",
   "type": "module",
   "license": "MIT",
   "author": "Leeson",

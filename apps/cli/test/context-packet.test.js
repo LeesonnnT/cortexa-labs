@@ -68,7 +68,7 @@ test("ctx pack validates missing Context Packet contract fields", () => {
   assert.equal(result.valid, false);
   assert.ok(result.missingFields.includes("workspace"));
   assert.ok(result.missingFields.includes("requiredFiles"));
-  assert.ok(result.errors.some((error) => error.includes("missing required fields")));
+  assert.ok(result.errors.some((error) => error.includes("缺少必填字段")));
 });
 
 test("ctx pack handles readable Chinese auth tasks without mojibake keywords", () => {
@@ -314,7 +314,7 @@ test("ctx pack marks weakly anchored tasks for review", () => {
 
     assert.notEqual(packet.qualityGate.status, "pass");
     assert.ok(packet.contextQuality.warnings.some((warning) => warning.type === "weak-anchor" || warning.type === "empty-required-context"));
-    assert.ok(packet.contextQuality.nextActions.some((action) => action.includes("Try one of these discovered anchors")));
+    assert.ok(packet.contextQuality.nextActions.some((action) => action.includes("可使用以下已发现锚点之一")));
     assert.ok(packet.contextQuality.refinementHints.suggestedAnchors.includes("src/App.tsx"));
     assert.equal(packet.phaseTransition.nextPhase, "refine-task");
   } finally {
@@ -466,8 +466,8 @@ test("ctx pack includes readiness and handoff data for review-gate tasks", () =>
     assert.ok(packet.handoff.readiness);
     assert.ok(packet.handoff.phaseTransition);
     assert.equal(packet.phaseTransition.nextPhase, "execute");
-    assert.ok(packet.handoff.executionPrompt.includes("You are working on a"));
-    assert.ok(packet.handoff.executionPrompt.includes("Readiness gate"));
+    assert.ok(packet.handoff.executionPrompt.includes("当前任务类型："));
+    assert.ok(packet.handoff.executionPrompt.includes("可执行性门禁"));
     assert.ok(packet.readiness.shouldProceed);
   } finally {
     removeFixture(root);

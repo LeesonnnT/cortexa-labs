@@ -11,7 +11,7 @@ Cortexa 是一个面向 AI 辅助工程的 context-first CLI。它不试图成�
 第一阶段产品闭环是：
 
 ```txt
-workspace discovery -> project kit assets -> task context resolution -> Context Packet -> AI coding tool
+Pack distribution -> project adaptation -> workspace discovery -> task context resolution -> Context Packet -> AI coding tool
 ```
 
 ## 2. 核心概念
@@ -36,6 +36,15 @@ Project Kit 是生成在 `.cortexa/` 下的资产系统。它存储 agents、ski
 
 人工维护的文件只在缺失时创建。机器生成的快照可以刷新。混合资产只刷新 Cortexa 受管区块，并保留团队手写内容。
 
+### Pack 与 Binding
+
+Pack 是 Cortexa 分发的通用 Spec、Agent 与 Skill 集合，具有稳定 id 和版本。Binding 是 Pack capability 到项目事实源的映射，用于将通用能力适配到项目现有文档、契约和工程约定。
+
+- `.cortexa/packs.lock.json` 记录当前项目采用的 Pack 与版本。
+- `.cortexa/adapters/project-bindings.json` 记录 `confirmed`、`inferred` 和 `missing` binding。
+- `confirmed` binding 才能进入任务 Packet 的必读项目文档。
+- `inferred` 或 `missing` binding 必须降低 Context Packet 的 readiness，提示人工复核。
+
 ## 3. MVP 边界
 
 Phase 1 聚焦一个稳定、可发布的闭环：
@@ -45,8 +54,9 @@ Phase 1 聚焦一个稳定、可发布的闭环：
 3. `ctx discover` 输出项目形态。
 4. `ctx analyze` 写入项目分析报告。
 5. `ctx audit` 检查资产健康度和快照漂移。
-6. `ctx pack --explain <task>` 构建版本化的 Context Packet。
-7. `ctx go --explain <task>` 初始化或刷新资产，然后打印 Context Packet。
+6. `ctx adapt` 为存量项目生成或刷新 Pack binding。
+7. `ctx pack --explain <task>` 构建版本化的 Context Packet。
+8. `ctx go --explain <task>` 初始化或刷新资产，然后打印 Context Packet。
 
 Phase 1 暂不做：
 
@@ -60,6 +70,8 @@ Phase 1 暂不做：
 
 ```txt
 CLI
+  -> Pack selection
+  -> project binding
   -> workspace discovery
   -> adapter analysis
   -> project kit generation
@@ -109,6 +121,8 @@ Context 层负责：
 - 估算 token budget；
 - 生成 readiness 和 quality gate 元数据；
 - 生成面向 AI 工具的 handoff 元数据。
+- 将任务命中的 confirmed project binding 加入阅读顺序和 token 预算。
+- 将 inferred 或 missing binding 作为 Context Quality 风险。
 
 Context Packet 必须包含 `schema`、`schemaVersion` 和 `generatedAt`，方便下游集成检测契约变化。
 
