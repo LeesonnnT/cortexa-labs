@@ -20,10 +20,14 @@ export function analyzeWorkspace(root) {
   return {
     report,
     paths: {
-      json: relative(root, jsonPath),
-      markdown: relative(root, markdownPath)
+      json: toPortablePath(relative(root, jsonPath)),
+      markdown: toPortablePath(relative(root, markdownPath))
     }
   };
+}
+
+function toPortablePath(path) {
+  return String(path || "").replaceAll("\\", "/");
 }
 
 function createAnalyzeReport(discovery) {

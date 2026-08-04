@@ -18,7 +18,7 @@ test("ctx analyze writes latest JSON and Markdown reports", () => {
     const markdownPath = join(root, result.paths.markdown);
 
     assert.equal(result.report.type, "analyze");
-    assert.equal(result.paths.json, ".cortexa\\reports\\analyze-latest.json");
+    assert.equal(result.paths.json, ".cortexa/reports/analyze-latest.json");
     assert.ok(existsSync(jsonPath));
     assert.ok(existsSync(markdownPath));
     assert.ok(result.report.structure.sourceFileCount >= 3);
